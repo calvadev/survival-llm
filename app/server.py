@@ -129,8 +129,9 @@ MAX_UPLOAD = 4 * 1024 ** 3
 my_files_checked = [0.0]  # when the folder was last looked at
 
 # Updates. Each release publishes update.json on the project's web page (packaging/make_update.py writes it):
-# {"version", "date", "notes": [...], "mac": {"url", "bytes", "sha256"}, "windows": {...}}. The app checks it once a
-# day while running (a plain request for a small file, nothing about the person) and when they press Check.
+# {"version", "date", "notes": [...], "mac": {"url", "bytes", "sha256"}, "windows": {...}, "linux": {...}}. The app
+# checks it once a day while running (a plain request for a small file, nothing about the person) and when they press
+# Check. Mac and Windows copies replace themselves with the download; Linux copies only show that it is out.
 UPDATES_URL = os.environ.get("SURVIVAL_LLM_UPDATES") or "https://anonnerdfrenzy.github.io/survival-llm/update.json"
 DOWNLOAD_PAGE = "https://www.brangus.io/survival-llm"
 FIRST_PACKS = "2026-10-24"  # the library packs' version from before packs said which version they are
@@ -753,7 +754,7 @@ def valid_update(data):
     if not isinstance(data, dict) or not isinstance(data.get("version"), str) \
             or not re.fullmatch(r"\d+(\.\d+){0,3}", data["version"]):
         return False
-    for key in ("mac", "windows"):
+    for key in ("mac", "windows", "linux"):
         pkg = data.get(key)
         if pkg is not None and not (isinstance(pkg, dict) and isinstance(pkg.get("bytes"), int)
                                     and re.fullmatch(r"(https://|http://127\.0\.0\.1:)\S+", str(pkg.get("url", "")))
@@ -830,7 +831,8 @@ def installed_pack():
 
 
 def platform_key():
-    return "mac" if sys.platform == "darwin" else "windows" if os.name == "nt" else None
+    # Linux has an update.json entry too, but only to say a newer release is out: updating it stays manual.
+    return "mac" if sys.platform == "darwin" else "windows" if os.name == "nt" else "linux"
 
 
 def newer_app():
@@ -904,7 +906,7 @@ def update_blocker():
     if DEV:
         return "This is a dev copy of Survival LLM (started with bin/dev), so it doesn't update itself."
     if sys.platform.startswith("linux"):
-        return ("Linux app updates are manual. Quit the app, get the newer repository source, and run "
+        return ("Linux app updates are manual. Quit the app, download the new version below, unpack it, and run "
                 "python3 packaging/install_linux.py again. Your settings, files and library are kept.")
     where = install_location()
     if where is None:
@@ -923,8 +925,11 @@ def update_report():
     report = {"version": VERSION, "checked": updates["checked"] or None, "error": updates["error"],
               "download_page": DOWNLOAD_PAGE, "app": None, "library": lib}
     if app:
+        pkg = app[platform_key()]
         report["app"] = {"version": app["version"], "date": app.get("date"), "notes": app.get("notes", []),
-                         "gb": round(app[platform_key()]["bytes"] / 1e9, 3), "blocker": update_blocker()}
+                         "gb": round(pkg["bytes"] / 1e9, 3), "blocker": update_blocker()}
+        if platform_key() == "linux":  # the notice links straight to the release archive (no self-update on Linux)
+            report["app"]["url"] = pkg.get("url")
     try:
         with open(UPDATE_FAILED, encoding="utf-8-sig") as f:
             report["failed"] = f.read().strip() or "no reason given"

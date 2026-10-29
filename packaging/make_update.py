@@ -4,7 +4,7 @@ Usage: python3 packaging/make_update.py "What's new, one item" ["another item" .
 Run after packaging/build.sh, once all three release files are uploaded to the GitHub release named after
 packaging/VERSION (v<version>), then publish docs/ (GitHub Pages). The app downloads the zip for its system from
 the release, checks it against the size and SHA-256 here, and replaces itself with it. Linux installs update
-manually from the release archive; the "linux" entry records it for reference and is ignored by the app.
+manually: the app reads the "linux" entry to say a newer release is out and to link to the archive, nothing more.
 """
 import datetime
 import hashlib

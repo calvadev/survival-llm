@@ -82,6 +82,32 @@ class LinuxTests(unittest.TestCase):
                 cwd=target, capture_output=True, text=True)
             self.assertEqual(script.returncode, 0, script.stderr)
 
+    def test_update_notice_points_to_release_archive(self):
+        with tempfile.TemporaryDirectory() as tmp, \
+                patch.dict(os.environ, {"SURVIVAL_LLM_APP_DIR": tmp}):
+            from app import server
+            archive = {"url": "https://example.com/Survival-LLM-linux.tar.gz", "bytes": 12_000_000_000,
+                       "sha256": "ab" * 32}
+            published = {"version": "999.0", "date": "2026-10-29", "notes": ["a fix"], "linux": archive}
+            state = {"data": published, "checked": 123.0, "error": None}
+            with patch.object(server, "updates", state):
+                self.assertTrue(server.valid_update(published))
+                self.assertEqual(server.newer_app()["version"], "999.0")
+                report = server.update_report()
+            notice = report["app"]
+            self.assertEqual(notice["url"], archive["url"])  # the notice links straight to the archive
+            self.assertIn("install_linux.py", notice["blocker"])  # and explains the manual install
+            # An update.json as old releases wrote it (no "linux" entry) shows no notice on Linux.
+            with patch.object(server, "updates", {**state, "data": {"version": "999.0", "notes": []}}):
+                self.assertIsNone(server.newer_app())
+                self.assertIsNone(server.update_report()["app"])
+            # A broken "linux" entry must not reach running copies as a notice.
+            self.assertFalse(server.valid_update({**published, "linux": {"url": "ftp://x", "bytes": 1,
+                                                                         "sha256": "ab" * 32}}))
+            # Nothing newer published: no notice either.
+            with patch.object(server, "updates", {**state, "data": {**published, "version": server.VERSION}}):
+                self.assertIsNone(server.newer_app())
+
     def test_dependencies_stay_private(self):
         with tempfile.TemporaryDirectory() as tmp, \
                 patch.object(installer.shutil, "which", return_value="/usr/bin/tool"), \
@@ -108,7 +134,7 @@ class LinuxTests(unittest.TestCase):
                 patch.dict(os.environ, {"SURVIVAL_LLM_APP_DIR": tmp}):
             from app import server
             self.assertEqual(server.system_key(), "win")
-            self.assertIsNone(server.platform_key())  # no Windows in-app updater on Linux
+            self.assertEqual(server.platform_key(), "linux")  # update.json's "linux" entry drives the notice
             self.assertIn("install_linux.py", server.update_blocker())
             with patch.object(server, "ram_gb", return_value=32), \
                     patch.object(server, "disk_free_gb", return_value=100):

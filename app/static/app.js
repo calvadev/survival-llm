@@ -1007,7 +1007,8 @@ function renderUpdates() {
       if (busy(job)) html += progressHTML(job, `Downloading Survival LLM ${esc(a.version)}`, "Update download");
       else if (job?.status === "done") html += `<p>Installed. Survival LLM is restarting into the new version…</p>`;
       else if (a.blocker) html += `<p>${esc(a.blocker)}</p>
-        <p><a href="${esc(r.download_page)}" target="_blank" rel="noopener">Get the new version from the website</a></p>`;
+        <p><a href="${esc(a.url || r.download_page)}" target="_blank" rel="noopener">${a.url
+          ? `Download Survival LLM ${esc(a.version)} for Linux` : "Get the new version from the website"}</a></p>`;
       else html += `${job?.status === "error" || updateError ? `<p class="error">${esc(updateError || job.error)}</p>` : ""}
         <button class="primary" type="button" id="install-update">Update now</button>
         <p class="meta">Survival LLM downloads the new version, closes, and opens again a few seconds later. Your AI models,
