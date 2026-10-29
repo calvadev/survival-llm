@@ -255,8 +255,16 @@ packaging/build.sh        # dist/Survival-LLM-mac.zip, dist/Survival-LLM-windows
                           # command-line tools) and dist/Survival-LLM-linux.tar.gz
 packaging/build.sh linux  # only the Linux archive, on any Mac or Linux machine (no Xcode needed)
 gh release create "v$(cat packaging/VERSION)" dist/Survival-LLM-mac.zip dist/Survival-LLM-windows.zip dist/Survival-LLM-linux.tar.gz
-python3 packaging/make_update.py "What's new" "..."   # writes docs/update.json; publish docs/ afterwards
+python3 packaging/make_update.py "What's new" "..."   # writes docs/update.json and checks its links
+git add docs/update.json && git commit -m "..."        # publish.sh refuses to publish uncommitted changes
+packaging/publish.sh   # publishes docs/; re-runs the check first and refuses to push on failure
 ```
+
+Publishing `docs/` is what tells installed copies about the new version, so it is gated twice:
+`packaging/publish.sh` runs the download check before it pushes, and the `Publish the update site`
+workflow runs it again before deploying, deploying only when it passes. For the workflow gate to hold,
+the repository's Pages source must be **GitHub Actions** (Settings → Pages → Source) — publishing from
+a branch would let a raw `git push` skip the check.
 
 Set the version in `packaging/VERSION` first. Installed copies read `docs/update.json` from the project's web page,
 download the zip for their system, check its size and SHA-256, and replace themselves with it. Linux copies update
