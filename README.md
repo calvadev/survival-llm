@@ -82,6 +82,11 @@ reopens the existing server. To diagnose a launch problem, run `~/.local/bin/sur
 If the browser doesn't open, visit the local URL printed there. Linux uses your desktop's Trash through
 `gio trash`; if Trash is unavailable, removing/replacing a personal file fails without deleting it.
 
+**If the installer or app fails with `version 'GLIBC_x.xx' not found`:** your system's Python was built
+against a newer glibc than the one installed — the result of a partial system upgrade on Arch/Omarchy.
+Run a full update (`sudo pacman -Syu`, or Omarchy menu → Update), reboot, and try again. Survival LLM
+can't work around this: Python itself can't start until the system is consistent.
+
 To update, quit the app, download the newer `Survival-LLM-linux.tar.gz` release archive (or update a
 clone), and rerun the installer. Linux app updates
 are manual (the in-app updater still handles only the existing Mac/Windows packages); library updates
