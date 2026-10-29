@@ -2,8 +2,9 @@
 
 Usage: python3 packaging/make_update.py "What's new, one item" ["another item" ...]
 Run after packaging/build.sh, once all three release files are uploaded to the GitHub release named after
-packaging/VERSION (v<version>). Then run packaging/check_update.py to confirm the URLs here resolve, and
-only then publish docs/ (GitHub Pages), so a bad link is caught before users receive it. The app downloads the zip for its system from
+packaging/VERSION (v<version>). It then runs packaging/check_update.py itself, every time, so the download
+URLs are confirmed to resolve without relying on anyone's memory; only when that passes, publish docs/
+(GitHub Pages). The app downloads the zip for its system from
 the release, checks it against the size and SHA-256 here, and replaces itself with it. Linux installs update
 manually: the app reads the "linux" entry to say a newer release is out and to link to the archive, nothing more.
 """
@@ -11,6 +12,7 @@ import datetime
 import hashlib
 import json
 import os
+import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -30,3 +32,9 @@ for key, name in (("mac", "Survival-LLM-mac.zip"), ("windows", "Survival-LLM-win
 with open(os.path.join(REPO, "docs", "update.json"), "w") as f:
     json.dump(update, f, indent=1)
 print(json.dumps(update, indent=1))
+
+# The check runs here, every time, not when remembered: a skipped check is how a dead link ships.
+# It needs the release files live on GitHub (see the docstring), so it runs last, after writing.
+print("checking the download URLs just written...", flush=True)
+if subprocess.run([sys.executable, os.path.join(HERE, "check_update.py")]).returncode:
+    sys.exit("FAIL docs/update.json is written but its check failed; fix the links before publishing docs/")

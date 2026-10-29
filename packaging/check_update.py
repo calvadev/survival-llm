@@ -1,8 +1,9 @@
 """Check docs/update.json before users find out the hard way: every download URL must resolve.
 
 Usage: python3 packaging/check_update.py
-Run after packaging/make_update.py and once the release files are live on GitHub, but before docs/
-is published (GitHub Pages), so a bad link is caught before users receive it. For each platform entry
+packaging/make_update.py runs this itself at the end of every release; run it by hand to re-check later
+(e.g. right before docs/ is published to GitHub Pages), so a bad link is caught before users receive it.
+For each platform entry
 this asks the URL for its headers (no download) and fails if it does not answer 200, reports no size,
 or its size disagrees with the recorded bytes. When dist/ still holds the built files, their SHA-256
 is checked against the recorded one too; with dist/ gone that half is skipped and noted.
