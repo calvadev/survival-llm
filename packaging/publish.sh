@@ -25,6 +25,15 @@ python3 "$HERE/check_update.py" || {
   exit 1
 }
 
+# update.json is not the only thing that can break on the site: a hand-edit that makes
+# docs/library-packs.json invalid JSON or leaves a dead pack URL would ship just as silently,
+# so the pack list is gated the same way, on the committed copy.
+echo "checking the library pack list before it goes out..."
+python3 "$HERE/check_packs.py" || {
+  echo "FAIL the pack list check did not pass; docs/ was not published" >&2
+  exit 1
+}
+
 # Headers cannot catch a corrupted upload (right size, wrong bytes) — only downloading the files can.
 # So the full check is mandatory here, the last gate before users see the notice. make_update.py
 # already ran it for this update.json and recorded that (packaging/.full-check, committed with docs/),

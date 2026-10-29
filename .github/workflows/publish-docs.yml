@@ -3,6 +3,8 @@
 # The site is deployed by this workflow, not by pushing a branch: the deploy job only runs after
 # packaging/check_update.py passes on the exact docs/update.json being published, so a hand-edited
 # update.json with a dead or wrong-sized download link fails here instead of reaching users.
+# packaging/check_packs.py runs alongside it, so a broken docs/library-packs.json (invalid JSON,
+# dead pack URLs) fails the same way.
 # For this to be the only way docs/ goes out, the repository's Pages source must be set to
 # "GitHub Actions" (Settings -> Pages -> Source); publishing from a branch would bypass the check.
 # packaging/publish.sh runs the same check before pushing, so a bad notice usually fails on the
@@ -11,9 +13,9 @@ name: Publish the update site
 on:
   push:
     branches: [main]
-    paths: [docs/**, packaging/check_update.py, .github/workflows/publish-docs.yml]
+    paths: [docs/**, packaging/check_update.py, packaging/check_packs.py, .github/workflows/publish-docs.yml]
   pull_request:
-    paths: [docs/update.json, packaging/check_update.py]
+    paths: [docs/update.json, docs/library-packs.json, packaging/check_update.py, packaging/check_packs.py]
 permissions:
   pages: write
   id-token: write
@@ -28,6 +30,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: python3 packaging/check_update.py
+      - run: python3 packaging/check_packs.py
   deploy:
     if: github.event_name == 'push'
     needs: check
