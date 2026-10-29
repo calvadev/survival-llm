@@ -273,7 +273,7 @@ def my_name(path):
 
 
 def to_trash(path):
-    """Move a file to the Trash (Mac) or Recycle Bin (Windows), so removing one of their files can be undone."""
+    """Move a file to the desktop's Trash, never silently delete it permanently."""
     if sys.platform == "darwin":
         try:
             from Foundation import NSURL, NSFileManager  # part of pywebview's macOS dependencies
@@ -292,7 +292,10 @@ def to_trash(path):
         subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", script], check=True, timeout=60,
                        env={**os.environ, "SURVIVAL_LLM_TRASH": path}, creationflags=0x08000000)  # no console window
     else:
-        os.remove(path)
+        if not shutil.which("gio"):
+            raise OSError("Trash is unavailable. Install GLib's gio tool (glib2 on Arch/Omarchy); "
+                          "the file has not been deleted.")
+        subprocess.run(["gio", "trash", os.path.abspath(path)], check=True, capture_output=True, timeout=60)
 
 
 def open_folder(path):
@@ -347,6 +350,7 @@ def disk_free_gb(path=None):
 
 
 def system_key():
+    # Linux uses the same standard Ollama model builds as Windows, not Apple's MLX/NVFP4 builds.
     return "mac" if sys.platform == "darwin" else "win"
 
 
@@ -899,6 +903,9 @@ def update_blocker():
     """Why this copy can't update itself, as a sentence for the person; None if it can."""
     if DEV:
         return "This is a dev copy of Survival LLM (started with bin/dev), so it doesn't update itself."
+    if sys.platform.startswith("linux"):
+        return ("Linux app updates are manual. Quit the app, get the newer repository source, and run "
+                "python3 packaging/install_linux.py again. Your settings, files and library are kept.")
     where = install_location()
     if where is None:
         if "/AppTranslocation/" in ROOT:
@@ -1436,7 +1443,8 @@ if __name__ == "__main__":
         os.makedirs(APP_DIR, exist_ok=True)
         sys.stdout = sys.stderr = open(os.path.join(APP_DIR, "app.log"), "a", buffering=1)
     os.chdir(os.path.expanduser("~"))  # nor can anything started from here, like the person's own Ollama, hold it
-    headless, use_browser = "--no-browser" in sys.argv, "--browser" in sys.argv
+    headless = "--no-browser" in sys.argv
+    use_browser = "--browser" in sys.argv and not headless
     existing = None if "--port" in sys.argv else running_instance()  # an explicit port means "start another"
     if existing:  # opened twice: just bring up the one already running
         print(f"Survival LLM is already running at {existing}")

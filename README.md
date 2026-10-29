@@ -35,6 +35,54 @@ your computer and internet speed (the biggest AI model is 80 GB); you only click
 2. **AI model:** it suggests the best one for your computer's memory (below) and downloads it.
 3. **Library:** "Everything" (8.8 GB download) or "Essentials" (1.3 GB, without Wikipedia and iFixit).
 
+### Linux (including Omarchy / Arch Linux)
+
+Requires Python 3.10 or newer, a desktop browser, and Ollama. Uses your browser on both Wayland
+(including Omarchy's Hyprland desktop) and X11; no Qt, GTK webview or desktop-window package is needed.
+The server listens only on your computer's loopback interface, not your network.
+
+1. On Omarchy / Arch, install the prerequisites:
+   ```bash
+   sudo pacman -S --needed python python-pip xdg-utils glib2
+   ```
+   Install Ollama from **Omarchy Menu → Install → AI → Ollama**, or use `sudo pacman -S ollama`
+   for CPU inference. For GPU acceleration, choose the appropriate Arch package instead:
+   `ollama-cuda` (supported NVIDIA GPU), `ollama-rocm` (supported AMD GPU), or `ollama-vulkan`
+   (supported Vulkan GPU), with the matching graphics drivers. See the
+   [ArchWiki Ollama guide](https://wiki.archlinux.org/title/Ollama).
+   Then start the engine:
+   ```bash
+   sudo systemctl enable --now ollama
+   ```
+   Alternatively, run `ollama serve` in another terminal. Don't run both if the service is already running.
+   On other Linux distributions, install Python, pip, `xdg-open` and GLib's `gio` using your package manager,
+   and follow [Ollama's Linux instructions](https://docs.ollama.com/linux).
+2. Download/extract or clone this repository, then from its folder run **without sudo**:
+   ```bash
+   python3 packaging/install_linux.py
+   ```
+   This copies the app to `~/.local/share/survival-llm`, installs its Python dependencies into a private
+   `deps` folder (not system Python), and adds an app-menu entry and `~/.local/bin/survival-llm`.
+   It does not install Ollama, change system services, or download models and library packs.
+3. Open **Survival LLM** from your app launcher (on Omarchy, `Super + Space`), or run:
+   ```bash
+   ~/.local/bin/survival-llm
+   ```
+   Pick and download a model and library in the app while online. Linux uses standard Ollama models,
+   not the Mac-specific builds. A CPU-only device works but can be much slower; memory and disk
+   requirements still apply. Once everything is downloaded, chatting and library searches work offline.
+
+Closing the tab leaves the server running; use **Quit** in the app to stop it. Launching it again
+reopens the existing server. To diagnose a launch problem, run `~/.local/bin/survival-llm` in a terminal.
+If the browser doesn't open, visit the local URL printed there. Linux uses your desktop's Trash through
+`gio trash`; if Trash is unavailable, removing/replacing a personal file fails without deleting it.
+
+To update, quit the app, obtain the newer repository source, and rerun the installer. Linux app updates
+are manual (the in-app updater still handles only the existing Mac/Windows packages); library updates
+remain available in the app. The installation can be moved with `--prefix PATH`, but custom prefixes
+may need to be added to your desktop's application search path. After a system Python upgrade, rerun
+the installer if dependencies no longer load.
+
 **Free disk space needed:** the model's size plus 5 GB, plus about 27 GB while the full library installs
 (21 GB once installed), or about 10 GB for Essentials (3 GB once installed).
 
@@ -45,6 +93,13 @@ computer, so keep it if you use Ollama elsewhere), and the library, in `~/Surviv
 `~/Survival LLM Files`; keep that folder if you want them. The app's own
 settings are in `~/Library/Application Support/Survival LLM` on a Mac, and in `%APPDATA%\Survival LLM` plus the
 AI engine in `%LOCALAPPDATA%\Survival LLM` on Windows.
+
+On Linux, remove `~/.local/share/survival-llm`, `~/.local/bin/survival-llm` and
+`~/.local/share/applications/survival-llm.desktop` to uninstall just this app (adjust for a custom prefix).
+Settings and memory remain in `~/.survival-llm`; personal files and library remain in the home folders
+listed above. Keep these unless you intend to delete that data too. Ollama and its models are separate:
+Arch's system service normally keeps models in `/var/lib/ollama`, whereas a user-run `ollama serve`
+normally uses `~/.ollama/models`. Do not delete a shared model store just to uninstall Survival LLM.
 
 ## Which model your computer gets
 

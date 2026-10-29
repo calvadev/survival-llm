@@ -329,6 +329,11 @@ function renderSetup() {
     one-time ${s.engine.gb} GB download, and nothing else to install.</p>
     ${engineJob?.status === "error" ? `<p class="error">${esc(engineJob.error)}</p>` : ""}
     <button class="primary" type="button" id="get-engine">Download the AI engine (${s.engine.gb} GB)</button>`;
+  else if (s.machine.os === "Linux") step1 = `<p>Install Ollama while you have internet. On Omarchy, use
+    <strong>Omarchy Menu → Install → AI → Ollama</strong>, or on Arch Linux run <code>sudo pacman -S ollama</code>.
+    Start the service with <code>sudo systemctl enable --now ollama</code>, or run <code>ollama serve</code> in a terminal.
+    This page notices when it is ready. For other distributions, see
+    <a href="https://docs.ollama.com/linux" target="_blank" rel="noopener">Ollama's Linux instructions</a>.</p>`;
   else step1 = `<p>Survival LLM uses the free Ollama app to run the AI on this computer. Install it while you have internet:
     <a href="https://ollama.com/download" target="_blank" rel="noopener">ollama.com/download</a>. You don't need Ollama's own
     window; it just has to be running. This page notices on its own when it is.</p>`;

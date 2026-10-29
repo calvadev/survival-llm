@@ -1,0 +1,3 @@
+# Browser mode avoids Qt/GTK webview dependencies on Wayland and X11.
+pypdf==6.19.0
+truststore>=0.10,<1
