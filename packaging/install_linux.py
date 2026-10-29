@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Install a browser-based Linux desktop app for the current user, without sudo.
 
-Run from the checkout: python3 packaging/install_linux.py
+Run from a source checkout or from the extracted release archive
+(Survival-LLM-linux.tar.gz, built by packaging/make_linux_release.py):
+    python3 packaging/install_linux.py
 System Python is left untouched; pure-Python dependencies live beside the app.
 """
 import argparse

@@ -1,9 +1,10 @@
 """Write docs/update.json, which tells installed copies of the app that a new version is out.
 
 Usage: python3 packaging/make_update.py "What's new, one item" ["another item" ...]
-Run after packaging/build.sh, once both zips are uploaded to the GitHub release named after packaging/VERSION
-(v<version>), then publish docs/ (GitHub Pages). The app downloads the zip for its system from the release, checks
-it against the size and SHA-256 here, and replaces itself with it.
+Run after packaging/build.sh, once all three release files are uploaded to the GitHub release named after
+packaging/VERSION (v<version>), then publish docs/ (GitHub Pages). The app downloads the zip for its system from
+the release, checks it against the size and SHA-256 here, and replaces itself with it. Linux installs update
+manually from the release archive; the "linux" entry records it for reference and is ignored by the app.
 """
 import datetime
 import hashlib
@@ -17,7 +18,8 @@ RELEASES = "https://github.com/anonnerdfrenzy/survival-llm/releases/download"
 
 version = open(os.path.join(HERE, "VERSION")).read().strip()
 update = {"version": version, "date": datetime.date.today().isoformat(), "notes": sys.argv[1:]}
-for key, name in (("mac", "Survival-LLM-mac.zip"), ("windows", "Survival-LLM-windows.zip")):
+for key, name in (("mac", "Survival-LLM-mac.zip"), ("windows", "Survival-LLM-windows.zip"),
+                  ("linux", "Survival-LLM-linux.tar.gz")):
     path = os.path.join(REPO, "dist", name)
     digest = hashlib.sha256()
     with open(path, "rb") as f:

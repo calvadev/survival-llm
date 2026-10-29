@@ -3,12 +3,14 @@
 # Windows folder. Each bundles a portable Python (python-build-standalone), pywebview for the app window, and the
 # app code. The Mac app also carries Ollama (the AI engine); the Windows one downloads it on first use, since
 # Ollama for Windows is 1.6 GB. The AI model and the library are downloaded from inside the app.
-# Output: dist/Survival-LLM-mac.zip and dist/Survival-LLM-windows.zip
-#   build.sh mac   only the Mac app (dist/mac and its zip), as bin/dev --release runs it
-#   build.sh dev   only "Survival LLM Dev" in ~/Applications: the Mac app running the code in this folder (bin/dev)
+# The Linux download is a source archive with the per-user installer; it needs no Xcode and builds anywhere.
+# Output: dist/Survival-LLM-mac.zip, dist/Survival-LLM-windows.zip and dist/Survival-LLM-linux.tar.gz
+#   build.sh mac    only the Mac app (dist/mac and its zip), as bin/dev --release runs it
+#   build.sh linux  only the Linux source archive (dist/Survival-LLM-linux.tar.gz), on any Mac or Linux machine
+#   build.sh dev    only "Survival LLM Dev" in ~/Applications: the Mac app running the code in this folder (bin/dev)
 set -euo pipefail
 TARGET="${1:-all}"
-case "$TARGET" in all|mac|dev) ;; *) echo "usage: packaging/build.sh [mac|dev]" >&2; exit 2 ;; esac
+case "$TARGET" in all|mac|dev|linux) ;; *) echo "usage: packaging/build.sh [mac|linux|dev]" >&2; exit 2 ;; esac
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(dirname "$HERE")"
@@ -93,6 +95,12 @@ if [ "$TARGET" = dev ]; then
   [ -f "$HERE/AppIcon.icns" ] && cp "$HERE/AppIcon.icns" "$DEV_RES/"
   echo "Built $DEV_APP"
   exit 0
+fi
+
+# ---------- Linux source release (any machine; reproducible, no Xcode needed) ----------
+if [ "$TARGET" = all ] || [ "$TARGET" = linux ]; then
+  python3 "$HERE/make_linux_release.py"
+  [ "$TARGET" = linux ] && exit 0
 fi
 
 # ---------- macOS (Apple Silicon) ----------

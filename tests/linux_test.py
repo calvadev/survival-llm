@@ -2,6 +2,7 @@
 import importlib.util
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -42,6 +43,44 @@ class LinuxTests(unittest.TestCase):
             self.assertTrue(lines[0].startswith(str(target / "deps")))
             self.assertEqual(lines[1:], [str(target / "app" / "server.py"), "--browser",
                                         "--no-browser", "--port", "5123"])
+
+    def test_release_archive_installs_without_checkout(self):
+        import tarfile
+        spec = importlib.util.spec_from_file_location(
+            "make_linux_release", ROOT / "packaging" / "make_linux_release.py")
+        release = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(release)
+        with tempfile.TemporaryDirectory() as tmp:
+            archive = Path(tmp) / "Survival-LLM-linux.tar.gz"
+            release.build(archive)
+            with tarfile.open(archive) as tar:
+                names = tar.getnames()
+                tar.extractall(Path(tmp) / "extracted", filter="data")
+            self.assertIn("Survival-LLM/packaging/install_linux.py", names)
+            self.assertIn("Survival-LLM/packaging/requirements-linux.txt", names)
+            self.assertFalse(any("__pycache__" in n or "fetch_" in n for n in names))
+            # Install from the extracted archive, not the checkout, into a temporary prefix.
+            extracted = Path(tmp) / "extracted" / "Survival-LLM"
+            spec = importlib.util.spec_from_file_location(
+                "installer_from_archive", extracted / "packaging" / "install_linux.py")
+            from_archive = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(from_archive)
+            target, launcher, _ = from_archive.install(Path(tmp) / "prefix", skip_dependencies=True)
+            self.assertTrue(str(target).startswith(str(Path(tmp) / "prefix")))
+            self.assertEqual((target / "version.txt").read_text(),
+                             (extracted / "packaging" / "VERSION").read_text())
+            self.assertIn(str(target / "deps"), launcher.read_text())
+            self.assertNotIn(str(ROOT), launcher.read_text())
+            # The installed copy stands alone once the extracted folder is gone.
+            shutil.rmtree(extracted)
+            script = subprocess.run(
+                [sys.executable, "-c",
+                 "import pathlib, py_compile; "
+                 "py_compile.compile('app/server.py', doraise=True); "
+                 "py_compile.compile('core.py', doraise=True); "
+                 "py_compile.compile('memory.py', doraise=True)"],
+                cwd=target, capture_output=True, text=True)
+            self.assertEqual(script.returncode, 0, script.stderr)
 
     def test_dependencies_stay_private(self):
         with tempfile.TemporaryDirectory() as tmp, \

@@ -57,10 +57,15 @@ The server listens only on your computer's loopback interface, not your network.
    Alternatively, run `ollama serve` in another terminal. Don't run both if the service is already running.
    On other Linux distributions, install Python, pip, `xdg-open` and GLib's `gio` using your package manager,
    and follow [Ollama's Linux instructions](https://docs.ollama.com/linux).
-2. Download/extract or clone this repository, then from its folder run **without sudo**:
+2. Download `Survival-LLM-linux.tar.gz` from the
+   [latest release](https://github.com/anonnerdfrenzy/survival-llm/releases), extract it, and from the
+   extracted folder run **without sudo** (no Git or source checkout needed):
    ```bash
+   tar -xzf Survival-LLM-linux.tar.gz
+   cd Survival-LLM
    python3 packaging/install_linux.py
    ```
+   Cloning the repository and running the same command from it works identically.
    This copies the app to `~/.local/share/survival-llm`, installs its Python dependencies into a private
    `deps` folder (not system Python), and adds an app-menu entry and `~/.local/bin/survival-llm`.
    It does not install Ollama, change system services, or download models and library packs.
@@ -77,7 +82,8 @@ reopens the existing server. To diagnose a launch problem, run `~/.local/bin/sur
 If the browser doesn't open, visit the local URL printed there. Linux uses your desktop's Trash through
 `gio trash`; if Trash is unavailable, removing/replacing a personal file fails without deleting it.
 
-To update, quit the app, obtain the newer repository source, and rerun the installer. Linux app updates
+To update, quit the app, download the newer `Survival-LLM-linux.tar.gz` release archive (or update a
+clone), and rerun the installer. Linux app updates
 are manual (the in-app updater still handles only the existing Mac/Windows packages); library updates
 remain available in the app. The installation can be moved with `--prefix PATH`, but custom prefixes
 may need to be added to your desktop's application search path. After a system Python upgrade, rerun
@@ -240,13 +246,21 @@ Packs carry a date (`--version`, default today); installed copies offer a pack w
 ## Package the apps
 
 ```bash
-packaging/build.sh     # dist/Survival-LLM-mac.zip and dist/Survival-LLM-windows.zip (needs Xcode's command-line tools)
-gh release create "v$(cat packaging/VERSION)" dist/Survival-LLM-mac.zip dist/Survival-LLM-windows.zip
+packaging/build.sh        # dist/Survival-LLM-mac.zip, dist/Survival-LLM-windows.zip (needs Xcode's
+                          # command-line tools) and dist/Survival-LLM-linux.tar.gz
+packaging/build.sh linux  # only the Linux archive, on any Mac or Linux machine (no Xcode needed)
+gh release create "v$(cat packaging/VERSION)" dist/Survival-LLM-mac.zip dist/Survival-LLM-windows.zip dist/Survival-LLM-linux.tar.gz
 python3 packaging/make_update.py "What's new" "..."   # writes docs/update.json; publish docs/ afterwards
 ```
 
 Set the version in `packaging/VERSION` first. Installed copies read `docs/update.json` from the project's web page,
-download the zip for their system, check its size and SHA-256, and replace themselves with it.
+download the zip for their system, check its size and SHA-256, and replace themselves with it. Linux copies update
+manually from the release archive, so the Linux entry in `update.json` is only a record of the release.
+
+The Linux archive is the runtime source plus the per-user installer (`packaging/install_linux.py` and
+`packaging/requirements-linux.txt`), so Linux and Omarchy users can install from a release download without Git.
+`packaging/make_linux_release.py` writes it with sorted entries and fixed owners, permissions and timestamps, so
+the same source always builds the identical file — rebuild it and compare `shasum -a 256` to check.
 
 The Mac app bundles a portable Python, pywebview for its window, and Ollama. The Windows app bundles Python and
 pywebview and downloads Ollama on first use (it is 1.6 GB with its graphics-card libraries).
