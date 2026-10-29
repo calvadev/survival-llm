@@ -5,6 +5,8 @@ Run after packaging/build.sh, once all three release files are uploaded to the G
 packaging/VERSION (v<version>). It then runs packaging/check_update.py itself, every time, so the download
 URLs are confirmed to resolve without relying on anyone's memory; only when that passes, commit docs/ and
 publish it with packaging/publish.sh, which runs the check once more and refuses to push on failure.
+That default check reads headers only; run python3 packaging/check_update.py --full once per release to
+download each file and verify its SHA-256, so a corrupted upload is caught rather than shipped.
 The app downloads the zip for its system from
 the release, checks it against the size and SHA-256 here, and replaces itself with it. Linux installs update
 manually: the app reads the "linux" entry to say a newer release is out and to link to the archive, nothing more.
