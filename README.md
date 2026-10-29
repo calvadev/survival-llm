@@ -242,9 +242,12 @@ To build the shareable downloads:
 ```bash
 LIBRARY_OUT=dist/library-full .venv/bin/python library/build_library.py --public
 LIBRARY_OUT=dist/library-lite .venv/bin/python library/build_library.py --lite
-python3 packaging/make_packs.py --base-url https://github.com/OWNER/survival-llm/releases/download/vX.Y.Z \
+python3 packaging/make_packs.py --base-url https://github.com/anonnerdfrenzy/survival-llm/releases/download/vX.Y.Z \
   lite=dist/library-lite full=dist/library-full   # parts for the release + library-packs.json for docs/
 ```
+
+The base URL must be a release of the packs repo named in `packaging/repo.json` (the one place the
+project's GitHub repos are set); `packaging/check_repo.py` refuses to publish links that disagree with it.
 
 Packs carry a date (`--version`, default today); installed copies offer a pack with a newer date as an update.
 

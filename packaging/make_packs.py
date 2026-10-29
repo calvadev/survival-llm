@@ -25,8 +25,16 @@ LABELS = {
     "full": "Everything: Essentials plus about 930,000 of Wikipedia's most-read articles and iFixit",
 }
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import repo  # noqa: E402  the one place the GitHub repo URLs are named (packaging/repo.json)
+
 args = sys.argv[1:]
 base_url = args[args.index("--base-url") + 1].rstrip("/")
+# Part URLs are written into docs/library-packs.json, which the publish gate (check_repo.py) compares
+# against packaging/repo.json; writing a manifest for another repo would only fail there, so refuse now.
+if not base_url.startswith(repo.PACKS_RELEASES + "/"):
+    sys.exit(f"FAIL --base-url must be under {repo.PACKS_RELEASES}/... ; if the packs moved repo, "
+             "say so once in packaging/repo.json instead of passing a one-off URL")
 part_bytes = int(args[args.index("--part-mb") + 1]) * 1_000_000 if "--part-mb" in args else 1_900_000_000
 version = args[args.index("--version") + 1] if "--version" in args else datetime.date.today().isoformat()
 packs = [a.split("=", 1) for a in args if "=" in a and not a.startswith("--")]

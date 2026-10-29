@@ -25,6 +25,15 @@ python3 "$HERE/check_update.py" || {
   exit 1
 }
 
+# Every download and update link derives from one setting (packaging/repo.json), but the app and the
+# download page keep hardcoded copies that must agree with it. This offline check catches a repo move
+# that updated only some of the spots.
+echo "checking every repo link agrees with packaging/repo.json..."
+python3 "$HERE/check_repo.py" || {
+  echo "FAIL the repo link check did not pass; docs/ was not published" >&2
+  exit 1
+}
+
 # update.json is not the only thing that can break on the site: a hand-edit that makes
 # docs/library-packs.json invalid JSON or leaves a dead pack URL would ship just as silently,
 # so the pack list is gated the same way, on the committed copy.

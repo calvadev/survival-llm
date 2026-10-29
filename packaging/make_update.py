@@ -22,7 +22,10 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
-RELEASES = "https://github.com/calvadev/survival-llm/releases/download"
+sys.path.insert(0, HERE)
+import repo  # noqa: E402  the one place the GitHub repo URLs are named (packaging/repo.json)
+
+RELEASES = repo.RELEASES
 
 version = open(os.path.join(HERE, "VERSION")).read().strip()
 update = {"version": version, "date": datetime.date.today().isoformat(), "notes": sys.argv[1:]}
@@ -40,6 +43,12 @@ print(json.dumps(update, indent=1))
 
 # The check runs here, every time, not when remembered: a skipped check is how a dead link ships.
 # It needs the release files live on GitHub (see the docstring), so it runs last, after writing.
+# check_repo.py runs first: it is offline, and it confirms the spots that keep their own hardcoded
+# repo URL (the app, the download page) still agree with packaging/repo.json, so a release never
+# ships an app whose update feed points somewhere else than the release it is cut from.
+print("checking every repo link agrees with packaging/repo.json...", flush=True)
+if subprocess.run([sys.executable, os.path.join(HERE, "check_repo.py")]).returncode:
+    sys.exit("FAIL the repo link check failed; fix the links before packaging/publish.sh will publish docs/")
 print("checking the download URLs just written...", flush=True)
 if subprocess.run([sys.executable, os.path.join(HERE, "check_update.py")]).returncode:
     sys.exit("FAIL docs/update.json is written but its check failed; fix the links before packaging/publish.sh will publish docs/")
