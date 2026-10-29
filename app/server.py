@@ -132,7 +132,7 @@ my_files_checked = [0.0]  # when the folder was last looked at
 # {"version", "date", "notes": [...], "mac": {"url", "bytes", "sha256"}, "windows": {...}, "linux": {...}}. The app
 # checks it once a day while running (a plain request for a small file, nothing about the person) and when they press
 # Check. Mac and Windows copies replace themselves with the download; Linux copies only show that it is out.
-UPDATES_URL = os.environ.get("SURVIVAL_LLM_UPDATES") or "https://anonnerdfrenzy.github.io/survival-llm/update.json"
+UPDATES_URL = os.environ.get("SURVIVAL_LLM_UPDATES") or "https://calvadev.github.io/survival-llm/update.json"
 DOWNLOAD_PAGE = "https://www.brangus.io/survival-llm"
 FIRST_PACKS = "2026-10-24"  # the library packs' version from before packs said which version they are
 UPDATE_FAILED = os.path.join(APP_DIR, "update-failed.txt")  # left by the Windows updater when it had to roll back
