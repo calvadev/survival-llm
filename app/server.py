@@ -98,8 +98,11 @@ DISK_MARGIN_GB = 5  # keep this much free after a download
 # (packaging/make_packs.py writes it): {"packs": [{"id", "label", "gb", "parts": [{"url", "bytes", "sha256"}]}]}.
 # Packs are zips of index.sqlite + text/, split into parts because GitHub caps release files at 2 GB.
 # It lives on the project's web page (not "latest release"), so app releases and library releases stay independent.
+# The manifest is served from the fork's Pages site (calvadev/survival-llm, docs/ on main). The pack part URLs
+# inside it still point at the upstream repo's releases: the ~10 GB of pack zips are only hosted there, and
+# copying them to the fork is part of the "permanent home for releases" decision.
 MANIFEST_URL = os.environ.get("SURVIVAL_LLM_MANIFEST") or \
-    "https://anonnerdfrenzy.github.io/survival-llm/library-packs.json"
+    "https://calvadev.github.io/survival-llm/library-packs.json"
 
 if os.environ.get("SURVIVAL_LLM_APP_DIR"):  # another settings folder, such as the dev copy's (bin/dev)
     APP_DIR = os.environ["SURVIVAL_LLM_APP_DIR"]

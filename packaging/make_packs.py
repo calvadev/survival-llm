@@ -7,6 +7,7 @@ Each DIR holds index.sqlite and text/ (built with LIBRARY_OUT=DIR library/build_
 Writes dist/packs/library-<id>.zip.NNN parts and dist/packs/library-packs.json; publish the parts in that release
 and the JSON at docs/library-packs.json (the app reads it from the project's web page).
 Each zip carries SOURCES.md, since several sources' licenses ask for the license to travel with every copy.
+Republishing overwrites docs/library-packs.json; keep its top-level "note" (why the part URLs point where they do).
 --version (default: today) dates the packs; installed copies of the app offer a pack with a newer date as an update.
 GitHub release files must be under 2 GB, hence the parts; the app unzips straight from them after downloading,
 deleting each part once everything in it is unpacked. install_bytes is the most that puts on the disk at once.

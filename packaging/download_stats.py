@@ -14,12 +14,17 @@ import subprocess
 import sys
 from datetime import datetime
 
-REPO = "anonnerdfrenzy/survival-llm"
+# New app releases are published on the fork, but the library pack zips (~10 GB) and all older app releases
+# are still only on the upstream repo, pending the decision on the permanent home for releases. Count both:
+# no release exists in the two repos at once, so nothing is double-counted. If the packs move to the fork,
+# drop PACKS_REPO.
+APP_REPO = "calvadev/survival-llm"
+PACKS_REPO = "anonnerdfrenzy/survival-llm"
 HISTORY = os.path.expanduser("~/.local/share/survival-llm/download-stats.jsonl")
 
 
-def releases():
-    out = subprocess.run(["gh", "api", f"repos/{REPO}/releases", "--paginate",
+def releases(repo):
+    out = subprocess.run(["gh", "api", f"repos/{repo}/releases", "--paginate",
                           "--jq", ".[] | {tag: .tag_name, assets: [.assets[] | {name, n: .download_count}]}"],
                          capture_output=True, text=True, check=True).stdout
     return [json.loads(line) for line in out.splitlines() if line.strip()]
@@ -62,7 +67,7 @@ def save(s):
 
 
 def main():
-    s = tally(releases())
+    s = tally(releases(APP_REPO) + releases(PACKS_REPO))
     s["at"] = datetime.now().isoformat(timespec="minutes")
     prev = previous()
     save(s)

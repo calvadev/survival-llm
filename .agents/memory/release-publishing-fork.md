@@ -11,6 +11,9 @@ fork serves `docs/` from main at `calvadev.github.io/survival-llm/`.
 from here); the user said on 2026-10-28 to "publish on the fork, not the upstream."
 
 **How to apply:** `packaging/make_update.py` already emits fork URLs. When cutting a release, create it
-on the fork and upload all three assets there. Note the app still reads update.json from the upstream
-Pages URL (`SURVIVAL_LLM_UPDATES` in app/server.py) — that is an open follow-up. If upstream write
+on the fork and upload all three assets there. The app reads both update.json and the library-pack
+manifest from the fork's Pages site. Exception: the ~10 GB of library pack zips are hosted only on the
+upstream repo's v0.1.0 release, so the part URLs in docs/library-packs.json intentionally point upstream
+(explained by its top-level "note", which republishing with make_packs.py drops) and download_stats.py
+queries both repos. Moving the packs to the fork awaits the permanent-home decision. If upstream write
 access is ever restored, decide with the user whether to move publishing back before changing URLs again.

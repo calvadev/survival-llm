@@ -1,4 +1,5 @@
 {
+ "note": "Served from the fork's Pages site (calvadev/survival-llm). The part URLs intentionally point at the upstream repo's releases (anonnerdfrenzy/survival-llm v0.1.0): the ~10 GB of pack zips are only hosted there, pending the decision on the permanent home for releases. Republishing with packaging/make_packs.py drops this note -- keep it.",
  "packs": [
   {
    "id": "lite",
