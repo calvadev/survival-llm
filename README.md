@@ -58,7 +58,7 @@ The server listens only on your computer's loopback interface, not your network.
    On other Linux distributions, install Python, pip, `xdg-open` and GLib's `gio` using your package manager,
    and follow [Ollama's Linux instructions](https://docs.ollama.com/linux).
 2. Download `Survival-LLM-linux.tar.gz` from the
-   [latest release](https://github.com/anonnerdfrenzy/survival-llm/releases), extract it, and from the
+   [latest release](https://github.com/calvadev/survival-llm/releases), extract it, and from the
    extracted folder run **without sudo** (no Git or source checkout needed):
    ```bash
    tar -xzf Survival-LLM-linux.tar.gz
