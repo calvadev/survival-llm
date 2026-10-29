@@ -1,0 +1,13 @@
+# The runtime files every download carries. build.sh's copy_app (Mac and Windows
+# downloads) and make_linux_release.py (the Linux archive) both read this list,
+# so a new runtime file is added here once and all downloads ship it.
+# app/static/ is copied whole by both scripts; it is not listed file by file.
+core.py
+memory.py
+library/search.py
+library/passages.py
+library/myfiles.py
+app/server.py
+LICENSE
+README.md
+SOURCES.md

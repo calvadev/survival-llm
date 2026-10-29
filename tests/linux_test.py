@@ -2,6 +2,7 @@
 import importlib.util
 import os
 from pathlib import Path
+import shlex
 import shutil
 import subprocess
 import sys
@@ -14,6 +15,44 @@ sys.path.insert(0, str(ROOT))
 spec = importlib.util.spec_from_file_location("install_linux", ROOT / "packaging" / "install_linux.py")
 installer = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(installer)
+
+
+@unittest.skipUnless(shutil.which("bash"), "copy_app parity needs bash")
+class ReleaseParityTests(unittest.TestCase):
+    """The Linux archive carries the same runtime files as build.sh's Mac/Windows downloads."""
+
+    INSTALLER_ONLY = {"packaging/install_linux.py", "packaging/requirements-linux.txt",
+                      "packaging/VERSION"}
+
+    def copy_app_files(self, tmp):
+        """Relative paths build.sh's copy_app puts in a Mac or Windows download."""
+        script = (ROOT / "packaging" / "build.sh").read_text()
+        body = script.split("copy_app() {", 1)[1].split("\n}", 1)[0]
+        dest = Path(tmp) / "copied"
+        subprocess.run(["bash", "-ec",
+                        f"REPO={shlex.quote(str(ROOT))} HERE={shlex.quote(str(ROOT / 'packaging'))}"
+                        " VERSION=test\n"
+                        f"copy_app() {{{body}\n}}\n"
+                        'copy_app "$1"', "bash", str(dest)],
+                       check=True, capture_output=True, text=True)
+        return {p.relative_to(dest).as_posix() for p in dest.rglob("*") if p.is_file()}
+
+    def test_archive_matches_copy_app(self):
+        import tarfile
+        spec = importlib.util.spec_from_file_location(
+            "make_linux_release", ROOT / "packaging" / "make_linux_release.py")
+        release = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(release)
+        with tempfile.TemporaryDirectory() as tmp:
+            archive = Path(tmp) / "Survival-LLM-linux.tar.gz"
+            release.build(archive)
+            with tarfile.open(archive) as tar:
+                archive_files = {m.name.removeprefix("Survival-LLM/")
+                                 for m in tar.getmembers() if m.isfile()}
+            archive_files -= self.INSTALLER_ONLY
+            # version.txt is not archived: install_linux.py writes it from packaging/VERSION.
+            downloads = self.copy_app_files(tmp) - {"version.txt"}
+            self.assertEqual(archive_files, downloads)
 
 
 @unittest.skipUnless(sys.platform.startswith("linux"), "Linux desktop integration")

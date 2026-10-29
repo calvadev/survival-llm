@@ -20,19 +20,16 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
 TOP = "Survival-LLM"  # the folder the archive extracts to
 
+def runtime_files():
+    """The runtime source list shared with build.sh's copy_app (Mac and Windows downloads)."""
+    lines = (HERE / "runtime-files.txt").read_text(encoding="utf-8").splitlines()
+    return [line.strip() for line in lines if line.strip() and not line.startswith("#")]
+
+
 # The same runtime source build.sh's copy_app puts in the Mac and Windows downloads,
 # plus the Linux installer and what it needs, laid out like the checkout so
 # install_linux.py finds everything relative to itself.
-FILES = (
-    "core.py",
-    "memory.py",
-    "library/search.py",
-    "library/passages.py",
-    "library/myfiles.py",
-    "app/server.py",
-    "LICENSE",
-    "README.md",
-    "SOURCES.md",
+FILES = tuple(runtime_files()) + (
     "packaging/install_linux.py",
     "packaging/requirements-linux.txt",
     "packaging/VERSION",
