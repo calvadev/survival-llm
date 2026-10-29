@@ -17,6 +17,8 @@ Keep the existing standard-library server and Mac/Windows packaging intact.
 - Without opening a browser: `python3 app/server.py --no-browser --port 5000`.
 - Tests: `python3 tests/run_all.py` (no Ollama or library required).
 - Installer tests: `python3 tests/linux_test.py`.
+- Post-merge setup: `bash scripts/post-merge.sh` checks Python syntax and runs the tests.
+  It deliberately does not install desktop dependencies, download models/libraries, or start services.
 
 No Replit run workflow is configured: the requested work is Linux installation support, not cloud hosting.
 Do not expose the server publicly or weaken its Host/token checks to enable a hosted preview.
