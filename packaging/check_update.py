@@ -9,7 +9,10 @@ or its size disagrees with the recorded bytes. When dist/ still holds the built 
 is checked against the recorded one too; with dist/ gone that half is skipped and noted.
 Pass --full to download each release file and verify its SHA-256 against update.json, so a corrupted
 upload (right size, wrong bytes) is caught even after dist/ is gone. That is slow — hundreds of MB —
-so it stays opt-in; the header-only default stays fast enough for make_update.py to run every release.
+but it must pass once per release before publishing, so make_update.py and publish.sh both run it
+unconditionally. To keep re-checks quick, a passed --full records the update.json it verified in
+packaging/.full-check (commit it alongside docs/); when update.json has not changed since, --full
+skips the downloads and passes. The header-only default stays fast enough to run on every release.
 """
 import hashlib
 import json
@@ -71,9 +74,22 @@ def check_download(url, size, sha256):
     return problems
 
 
+MARKER = os.path.join(HERE, ".full-check")
+
+
 def main():
     full = "--full" in sys.argv[1:]
-    update = json.load(open(os.path.join(REPO, "docs", "update.json")))
+    update_path = os.path.join(REPO, "docs", "update.json")
+    update = json.load(open(update_path))
+    if full:
+        # The full check must pass once per release, not on every re-check: it records the update.json
+        # it verified, and an unchanged update.json skips the downloads. Commit the marker with docs/
+        # so publish.sh on any machine sees the pass.
+        with open(update_path, "rb") as f:
+            digest = hashlib.sha256(f.read()).hexdigest()
+        if os.path.exists(MARKER) and open(MARKER).read().strip() == digest:
+            print(f"PASS full check already passed for this update.json ({MARKER}); downloads skipped")
+            return
     problems = []
     for key in PLATFORMS:
         entry = update.get(key)
@@ -91,6 +107,8 @@ def main():
     if problems:
         sys.exit(1)
     if full:
+        with open(MARKER, "w") as f:
+            f.write(digest + "\n")
         print(f"PASS all {len(PLATFORMS)} downloads in docs/update.json match their recorded sha256")
     else:
         print(f"PASS all {len(PLATFORMS)} download URLs in docs/update.json resolve")
