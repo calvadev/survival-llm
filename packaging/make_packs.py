@@ -1,8 +1,9 @@
 """Zip built library folders into release parts and write the manifest the app downloads from.
 
-Usage: python3 packaging/make_packs.py --base-url URL [--part-mb 1900] [--version YYYY-MM-DD] ID=DIR [ID=DIR ...]
-  e.g. --base-url https://github.com/anonnerdfrenzy/survival-llm/releases/download/v0.1.0 \
-       lite=dist/library-lite full=dist/library-full
+Usage: python3 packaging/make_packs.py --release TAG [--part-mb 1900] [--version YYYY-MM-DD] ID=DIR [ID=DIR ...]
+  e.g. --release v0.1.0 lite=dist/library-lite full=dist/library-full
+  The part URLs are built from the packs repo named in packaging/repo.json, so the tag is all a release
+  needs; --base-url URL remains only as an override and must still point under that same repo.
 Each DIR holds index.sqlite and text/ (built with LIBRARY_OUT=DIR library/build_library.py --lite or --public).
 Writes dist/packs/library-<id>.zip.NNN parts and dist/packs/library-packs.json; publish the parts in that release
 and the JSON at docs/library-packs.json (the app reads it from the project's web page).
@@ -29,12 +30,22 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import repo  # noqa: E402  the one place the GitHub repo URLs are named (packaging/repo.json)
 
 args = sys.argv[1:]
-base_url = args[args.index("--base-url") + 1].rstrip("/")
-# Part URLs are written into docs/library-packs.json, which the publish gate (check_repo.py) compares
-# against packaging/repo.json; writing a manifest for another repo would only fail there, so refuse now.
-if not base_url.startswith(repo.PACKS_RELEASES + "/"):
-    sys.exit(f"FAIL --base-url must be under {repo.PACKS_RELEASES}/... ; if the packs moved repo, "
-             "say so once in packaging/repo.json instead of passing a one-off URL")
+if "--release" in args:
+    if "--base-url" in args:
+        sys.exit("FAIL pass either --release or --base-url, not both")
+    tag = args[args.index("--release") + 1]
+    if not tag or "/" in tag:
+        sys.exit("FAIL --release takes a bare release tag like v0.1.0, got " + repr(tag))
+    base_url = f"{repo.PACKS_RELEASES}/{tag}"
+elif "--base-url" in args:
+    base_url = args[args.index("--base-url") + 1].rstrip("/")
+    # Part URLs are written into docs/library-packs.json, which the publish gate (check_repo.py) compares
+    # against packaging/repo.json; writing a manifest for another repo would only fail there, so refuse now.
+    if not base_url.startswith(repo.PACKS_RELEASES + "/"):
+        sys.exit(f"FAIL --base-url must be under {repo.PACKS_RELEASES}/... ; if the packs moved repo, "
+                 "say so once in packaging/repo.json instead of passing a one-off URL")
+else:
+    sys.exit("FAIL pass --release TAG (or --base-url URL as an override)")
 part_bytes = int(args[args.index("--part-mb") + 1]) * 1_000_000 if "--part-mb" in args else 1_900_000_000
 version = args[args.index("--version") + 1] if "--version" in args else datetime.date.today().isoformat()
 packs = [a.split("=", 1) for a in args if "=" in a and not a.startswith("--")]

@@ -103,6 +103,29 @@ check("make_packs.py refuses a --base-url outside repo.json's packs repo",
       result.returncode != 0 and "repo.json" in (result.stdout + result.stderr),
       result.stdout + result.stderr)
 
+# --release TAG replaces the typed-out URL: it must be a bare tag, and it cannot mix with --base-url.
+result = subprocess.run([sys.executable, os.path.join(BASE, "packaging", "make_packs.py"),
+                         "--release", "v9.9.9", "--base-url", repo.PACKS_RELEASES + "/v9.9.9",
+                         "lite=/tmp/none"],
+                        capture_output=True, text=True, env=env)
+check("make_packs.py refuses --release and --base-url together",
+      result.returncode != 0 and "not both" in (result.stdout + result.stderr),
+      result.stdout + result.stderr)
+
+result = subprocess.run([sys.executable, os.path.join(BASE, "packaging", "make_packs.py"),
+                         "--release", repo.PACKS_RELEASES + "/v9.9.9", "lite=/tmp/none"],
+                        capture_output=True, text=True, env=env)
+check("make_packs.py refuses a --release that is a URL, not a tag",
+      result.returncode != 0 and "bare release tag" in (result.stdout + result.stderr),
+      result.stdout + result.stderr)
+
+result = subprocess.run([sys.executable, os.path.join(BASE, "packaging", "make_packs.py"),
+                         "lite=/tmp/none"],
+                        capture_output=True, text=True, env=env)
+check("make_packs.py refuses to run without --release or --base-url",
+      result.returncode != 0 and "--release" in (result.stdout + result.stderr),
+      result.stdout + result.stderr)
+
 # The derived URLs follow from repo.json: Pages host is the repo owner's.
 owner, name = repo.REPO.split("/")[-2:]
 check("derived Pages URL follows repo.json",
