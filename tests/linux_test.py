@@ -10,6 +10,12 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+
+def workdir():
+    """Temp dir for installs under test: outside the source checkout (the installer refuses prefixes
+    inside it) even when TMPDIR points into the workspace, as the post-merge script sets it."""
+    return tempfile.TemporaryDirectory(dir="/tmp")
+
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 spec = importlib.util.spec_from_file_location("install_linux", ROOT / "packaging" / "install_linux.py")
@@ -43,7 +49,7 @@ class ReleaseParityTests(unittest.TestCase):
             "make_linux_release", ROOT / "packaging" / "make_linux_release.py")
         release = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(release)
-        with tempfile.TemporaryDirectory() as tmp:
+        with workdir() as tmp:
             archive = Path(tmp) / "Survival-LLM-linux.tar.gz"
             release.build(archive)
             with tarfile.open(archive) as tar:
@@ -58,7 +64,7 @@ class ReleaseParityTests(unittest.TestCase):
 @unittest.skipUnless(sys.platform.startswith("linux"), "Linux desktop integration")
 class LinuxTests(unittest.TestCase):
     def test_installs_runtime_and_launches_from_another_directory(self):
-        with tempfile.TemporaryDirectory() as tmp:
+        with workdir() as tmp:
             # Exercise shell and Desktop Entry escaping, not just simple home-folder paths.
             prefix = Path(tmp) / 'A space $and "quote" %prefix'
             target, launcher, desktop = installer.install(prefix, skip_dependencies=True)
@@ -89,7 +95,7 @@ class LinuxTests(unittest.TestCase):
             "make_linux_release", ROOT / "packaging" / "make_linux_release.py")
         release = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(release)
-        with tempfile.TemporaryDirectory() as tmp:
+        with workdir() as tmp:
             archive = Path(tmp) / "Survival-LLM-linux.tar.gz"
             release.build(archive)
             with tarfile.open(archive) as tar:
@@ -122,7 +128,7 @@ class LinuxTests(unittest.TestCase):
             self.assertEqual(script.returncode, 0, script.stderr)
 
     def test_update_notice_points_to_release_archive(self):
-        with tempfile.TemporaryDirectory() as tmp, \
+        with workdir() as tmp, \
                 patch.dict(os.environ, {"SURVIVAL_LLM_APP_DIR": tmp}):
             from app import server
             archive = {"url": "https://example.com/Survival-LLM-linux.tar.gz", "bytes": 12_000_000_000,
@@ -148,7 +154,7 @@ class LinuxTests(unittest.TestCase):
                 self.assertIsNone(server.newer_app())
 
     def test_dependencies_stay_private(self):
-        with tempfile.TemporaryDirectory() as tmp, \
+        with workdir() as tmp, \
                 patch.object(installer.shutil, "which", return_value="/usr/bin/tool"), \
                 patch.object(installer.subprocess, "run") as run:
             target, _, _ = installer.install(tmp)
@@ -158,7 +164,7 @@ class LinuxTests(unittest.TestCase):
             self.assertNotIn("--break-system-packages", args)
 
     def test_missing_desktop_tools_fail_before_copying(self):
-        with tempfile.TemporaryDirectory() as tmp, \
+        with workdir() as tmp, \
                 patch.object(installer.shutil, "which", return_value=None):
             with self.assertRaisesRegex(RuntimeError, "glib2"):
                 installer.install(tmp)
@@ -169,7 +175,7 @@ class LinuxTests(unittest.TestCase):
             installer.install(ROOT, skip_dependencies=True)
 
     def test_linux_models_and_trash(self):
-        with tempfile.TemporaryDirectory() as tmp, \
+        with workdir() as tmp, \
                 patch.dict(os.environ, {"SURVIVAL_LLM_APP_DIR": tmp}):
             from app import server
             self.assertEqual(server.system_key(), "win")

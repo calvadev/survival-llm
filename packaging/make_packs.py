@@ -1,6 +1,6 @@
 """Zip built library folders into release parts and write the manifest the app downloads from.
 
-Usage: python3 packaging/make_packs.py --release TAG [--part-mb 1900] [--version YYYY-MM-DD] ID=DIR [ID=DIR ...]
+Usage: python3 packaging/make_packs.py --release TAG [--part-mb 1900] [--version YYYY-MM-DD] [--notes TEXT] ID=DIR [ID=DIR ...]
   e.g. --release v0.1.0 lite=dist/library-lite full=dist/library-full
   The part URLs are built from the packs repo named in packaging/repo.json, so the tag is all a release
   needs; --base-url URL remains only as an override and must still point under that same repo.
@@ -10,6 +10,7 @@ and the JSON at docs/library-packs.json (the app reads it from the project's web
 Each zip carries SOURCES.md, since several sources' licenses ask for the license to travel with every copy.
 Republishing overwrites docs/library-packs.json; keep its top-level "note" (why the part URLs point where they do).
 --version (default: today) dates the packs; installed copies of the app offer a pack with a newer date as an update.
+--notes says in a sentence what changed, for that offer ("Removes about 2,600 repeated pages, ...").
 GitHub release files must be under 2 GB, hence the parts; the app unzips straight from them after downloading,
 deleting each part once everything in it is unpacked. install_bytes is the most that puts on the disk at once.
 """
@@ -48,7 +49,9 @@ else:
     sys.exit("FAIL pass --release TAG (or --base-url URL as an override)")
 part_bytes = int(args[args.index("--part-mb") + 1]) * 1_000_000 if "--part-mb" in args else 1_900_000_000
 version = args[args.index("--version") + 1] if "--version" in args else datetime.date.today().isoformat()
-packs = [a.split("=", 1) for a in args if "=" in a and not a.startswith("--")]
+notes = args[args.index("--notes") + 1] if "--notes" in args else None
+values = {args.index(flag) + 1 for flag in ("--base-url", "--part-mb", "--version", "--notes") if flag in args}
+packs = [a.split("=", 1) for i, a in enumerate(args) if i not in values and "=" in a and not a.startswith("--")]
 out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "dist", "packs")
 os.makedirs(out_dir, exist_ok=True)
 
@@ -97,7 +100,7 @@ for pack_id, folder in packs:
     label = LABELS.get(pack_id, pack_id)
     manifest["packs"].append({"id": pack_id, "label": f"{label} ({gb:.1f} GB, {articles:,} articles)",
                               "gb": round(gb, 1), "articles": articles, "version": version,
-                              "install_bytes": install_bytes, "parts": parts})
+                              "install_bytes": install_bytes, "parts": parts, **({"notes": notes} if notes else {})})
     print(f"  {len(parts)} parts, {gb:.2f} GB", flush=True)
 
 with open(os.path.join(out_dir, "library-packs.json"), "w") as f:
