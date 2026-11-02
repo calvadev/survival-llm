@@ -8,6 +8,7 @@ import {
   FlatList,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -68,6 +69,61 @@ export default function ChatScreen() {
 
   const reversed = useMemo(() => [...app.messages].reverse(), [app.messages]);
 
+  // Setup card / welcome content shown while there are no messages. Rendered
+  // outside the (inverted) FlatList because an empty inverted list collapses
+  // its ListFooterComponent on web, leaving a blank body.
+  const emptyState = (
+    <View>
+      {!ready && (
+        <Pressable
+          onPress={() => router.push('/setup')}
+          style={[styles.setupCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+        >
+          <Text style={[styles.setupTitle, { color: colors.text }]}>Set up Survival LLM</Text>
+          <Text style={{ color: colors.mutedForeground, lineHeight: 21, marginTop: 6 }}>
+            Download the AI and the library once, while you have internet. After that this app works
+            with none — every answer shows the passage it came from.
+          </Text>
+          <View style={[styles.setupBtn, { backgroundColor: colors.primary }]}>
+            <Text style={{ color: colors.primaryForeground, fontWeight: '700' }}>
+              {downloading ? 'See downloads' : 'Start setup'}
+            </Text>
+          </View>
+        </Pressable>
+      )}
+      {ready && app.messages.length === 0 && (
+        <View style={{ paddingTop: 24 }}>
+          <Text style={[styles.welcomeTitle, { color: colors.text }]}>Ask anything. No internet needed.</Text>
+          <Text style={{ color: colors.mutedForeground, lineHeight: 22, marginTop: 8 }}>
+            A local AI looks things up in an offline library of medical, emergency, how-to and
+            encyclopedia articles, then tells you where each answer came from. Tap a source to read
+            it yourself.
+          </Text>
+          <View style={{ marginTop: 16, gap: 10 }}>
+            {EXAMPLES.map((q) => (
+              <Pressable
+                key={q}
+                onPress={() => sendNow(q)}
+                style={({ pressed }) => [
+                  styles.example,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: pressed ? colors.primary : colors.border,
+                  },
+                ]}
+              >
+                <Text style={{ color: colors.text, lineHeight: 20 }}>{q}</Text>
+              </Pressable>
+            ))}
+          </View>
+          <Text style={{ color: colors.mutedForeground, fontSize: 12.5, textAlign: 'center', marginTop: 18 }}>
+            AI can make mistakes. Check the sources.
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+
   return (
     <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: topPad }]}>
       {/* header — mirrors the desktop top bar */}
@@ -100,6 +156,13 @@ export default function ChatScreen() {
           <View style={styles.center}>
             <ActivityIndicator color={colors.primary} />
           </View>
+        ) : reversed.length === 0 ? (
+          <ScrollView
+            contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 16 }}
+            keyboardShouldPersistTaps="handled"
+          >
+            {emptyState}
+          </ScrollView>
         ) : (
           <FlatList
             inverted
@@ -109,58 +172,7 @@ export default function ChatScreen() {
             contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 16 }}
             keyboardDismissMode="interactive"
             keyboardShouldPersistTaps="handled"
-            scrollEnabled={reversed.length > 0}
-            ListFooterComponent={
-              <View>
-                {!ready && (
-                  <Pressable
-                    onPress={() => router.push('/setup')}
-                    style={[styles.setupCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-                  >
-                    <Text style={[styles.setupTitle, { color: colors.text }]}>Set up Survival LLM</Text>
-                    <Text style={{ color: colors.mutedForeground, lineHeight: 21, marginTop: 6 }}>
-                      Download the AI and the library once, while you have internet. After that this app works
-                      with none — every answer shows the passage it came from.
-                    </Text>
-                    <View style={[styles.setupBtn, { backgroundColor: colors.primary }]}>
-                      <Text style={{ color: colors.primaryForeground, fontWeight: '700' }}>
-                        {downloading ? 'See downloads' : 'Start setup'}
-                      </Text>
-                    </View>
-                  </Pressable>
-                )}
-                {ready && app.messages.length === 0 && (
-                  <View style={{ paddingTop: 24 }}>
-                    <Text style={[styles.welcomeTitle, { color: colors.text }]}>Ask anything. No internet needed.</Text>
-                    <Text style={{ color: colors.mutedForeground, lineHeight: 22, marginTop: 8 }}>
-                      A local AI looks things up in an offline library of medical, emergency, how-to and
-                      encyclopedia articles, then tells you where each answer came from. Tap a source to read
-                      it yourself.
-                    </Text>
-                    <View style={{ marginTop: 16, gap: 10 }}>
-                      {EXAMPLES.map((q) => (
-                        <Pressable
-                          key={q}
-                          onPress={() => sendNow(q)}
-                          style={({ pressed }) => [
-                            styles.example,
-                            {
-                              backgroundColor: colors.card,
-                              borderColor: pressed ? colors.primary : colors.border,
-                            },
-                          ]}
-                        >
-                          <Text style={{ color: colors.text, lineHeight: 20 }}>{q}</Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                    <Text style={{ color: colors.mutedForeground, fontSize: 12.5, textAlign: 'center', marginTop: 18 }}>
-                      AI can make mistakes. Check the sources.
-                    </Text>
-                  </View>
-                )}
-              </View>
-            }
+            ListFooterComponent={emptyState}
           />
         )}
 
