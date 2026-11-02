@@ -19,6 +19,18 @@ Keep the existing standard-library server and Mac/Windows packaging intact.
 - Installer tests: `python3 tests/linux_test.py`.
 - Post-merge setup: `bash scripts/post-merge.sh` checks Python syntax and runs the tests.
   It deliberately does not install desktop dependencies, download models/libraries, or start services.
+- In Replit, `/tmp` has only 4 GB; use `mkdir -p .cache/tmp` and
+  `TMPDIR="$PWD/.cache/tmp" python3 tests/run_all.py` for the setup tests, which need 5 GB free.
+  The post-merge script sets this automatically.
 
-No Replit run workflow is configured: the requested work is Linux installation support, not cloud hosting.
+No Replit run workflow is configured: this is a local desktop app, not cloud hosting.
 Do not expose the server publicly or weaken its Host/token checks to enable a hosted preview.
+
+## Multi-artifact workspace
+
+The pnpm workspace scaffold (`artifacts/api-server/`, `artifacts/mockup-sandbox/`,
+`lib/*`, and the workspace package files) is retained for future work. It does not
+replace or run the Python desktop product. The desktop app needs no JavaScript
+build, generated API hooks, PostgreSQL database, or database migration.
+Do not convert it to React or relocate its files: its packaging and tests rely
+on the original root layout.

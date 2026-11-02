@@ -1,0 +1,57 @@
+{
+ "note": "Served from the fork's Pages site (calvadev/survival-llm). The part URLs intentionally point at the upstream repo's releases (anonnerdfrenzy/survival-llm, tag library-2026-10-28): the ~10 GB of pack zips are only hosted there, pending the decision on the permanent home for releases. Republishing with packaging/make_packs.py drops this note -- keep it.",
+ "packs": [
+  {
+   "id": "lite",
+   "label": "Essentials: medical, emergency, survival, how-to and repair (1.3 GB, 494,574 articles)",
+   "gb": 1.3,
+   "articles": 494574,
+   "version": "2026-10-28",
+   "install_bytes": 4509641710,
+   "parts": [
+    {
+     "url": "https://github.com/anonnerdfrenzy/survival-llm/releases/download/library-2026-10-28/library-lite.zip.000",
+     "bytes": 1275477229,
+     "sha256": "0e9fc46df8288c1aa9a81b87386acd224963b8a1b2fd44d51078089d3dee8686"
+    }
+   ],
+   "notes": "It drops about 2,700 repeated pages, so searches show more different articles."
+  },
+  {
+   "id": "full",
+   "label": "Everything: Essentials plus about 930,000 of Wikipedia's most-read articles and iFixit (8.7 GB, 1,507,306 articles)",
+   "gb": 8.7,
+   "articles": 1507306,
+   "version": "2026-10-28",
+   "install_bytes": 22332537074,
+   "parts": [
+    {
+     "url": "https://github.com/anonnerdfrenzy/survival-llm/releases/download/library-2026-10-28/library-full.zip.000",
+     "bytes": 1900000000,
+     "sha256": "57bfb07c449bde58034ebac34aa09035bfde161a1a4bbe141833d42f9048aaeb"
+    },
+    {
+     "url": "https://github.com/anonnerdfrenzy/survival-llm/releases/download/library-2026-10-28/library-full.zip.001",
+     "bytes": 1900000000,
+     "sha256": "9bfe149c963d090b2c9d1d393beb4da7c8f61b17b13f192b417d25fb860d363b"
+    },
+    {
+     "url": "https://github.com/anonnerdfrenzy/survival-llm/releases/download/library-2026-10-28/library-full.zip.002",
+     "bytes": 1900000000,
+     "sha256": "88c9b8e5d8abf5d8f84d7509edb8305024da18dc43ee1e8be5a01bb0af1668de"
+    },
+    {
+     "url": "https://github.com/anonnerdfrenzy/survival-llm/releases/download/library-2026-10-28/library-full.zip.003",
+     "bytes": 1900000000,
+     "sha256": "da87c3b7e1a49fe35cf1c2a5084104e284f70d0b4dd6faebc0d6e5107b5c126c"
+    },
+    {
+     "url": "https://github.com/anonnerdfrenzy/survival-llm/releases/download/library-2026-10-28/library-full.zip.004",
+     "bytes": 1056720766,
+     "sha256": "75f8107d419fe5891296de3342bd2798d749001c10651fe4e593bca13bfe0a26"
+    }
+   ],
+   "notes": "It drops about 2,700 repeated pages, so searches show more different articles."
+  }
+ ]
+}
