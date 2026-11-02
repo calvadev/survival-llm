@@ -361,5 +361,6 @@ export async function chatTurn(params: RunParams): Promise<{ text: string; sourc
   const line = read.length
     ? 'Sources: ' + read.slice(0, 6).map((s) => `${s.title} (${s.source})`).join('; ')
     : 'Sources: none (from its own knowledge)';
-  return { text: answer, sources: read.length ? read : [], ...(line ? {} : {}) };
+  // The verified line is part of the answer text, exactly as the desktop app shows it.
+  return { text: `${answer}\n\n${line}`, sources: read.length ? read : [] };
 }

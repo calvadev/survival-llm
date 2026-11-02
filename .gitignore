@@ -60,3 +60,10 @@ __pycache__/
 *.pyc
 library.noindex/
 packaging/cache/
+
+# Zapstore publishing: local tools, keystore and its passwords (never commit)
+packaging/zapstore/zsp
+packaging/zapstore/upload-keystore.jks
+packaging/zapstore/upload-keystore.env
+.gradle-home/
+.android-sdk/

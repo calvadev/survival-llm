@@ -19,6 +19,12 @@ and shows you the exact passage each answer came from.
 Do this while you have internet. After that, it needs none. Setup takes 20 minutes to about 2½ hours, depending on
 your computer and internet speed (the biggest AI model is 80 GB); you only click for about 5 minutes.
 
+**Android** (phones and tablets)
+
+Survival LLM for Android is published on [Zapstore](https://zapstore.dev/), an open app store — no Google account
+needed. Install the Zapstore app, search for **Survival LLM**, and install it. The app then downloads an on-device
+AI model (about 2 GB) and the Essentials library (about 1.3 GB); after that it works fully offline.
+
 **Mac** (Apple Silicon, macOS 14 Sonoma or newer)
 1. Download `Survival-LLM-mac.zip` and double-click it to unzip. Move **Survival LLM** to Applications if you like.
 2. Double-click **Survival LLM**. The first time, macOS says it can't verify the app, because it isn't sold through
