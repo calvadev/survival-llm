@@ -48,6 +48,13 @@ esac
 [ -n "${NOSTR_NSEC:-}" ] || fail "NOSTR_NSEC is not set; add it in the workspace secrets and re-run"
 [ -n "${GITHUB_TOKEN:-}" ] || fail "GITHUB_TOKEN is not set; needed for the GitHub release and for pushing zapstore.yaml"
 
+# Fail fast if the listing would go out without screenshots (no images: list,
+# a listed file missing/empty, or an entry that is not a plausible phone
+# screenshot). A listing without screenshots shipped once already; this gate
+# runs before any build or network work so the mistake is cheap to fix.
+note "checking the listing has screenshots"
+python3 "$HERE/check_zapstore_images.py" || fail "zapstore.yaml screenshot check failed — not publishing"
+
 if [ "$MODE" = full ]; then
   [ -f "$KEYSTORE" ] || fail "upload keystore missing at $KEYSTORE — losing it means losing the ability to update the app"
   [ -f "$KEYSTORE_ENV" ] || fail "keystore passwords missing at $KEYSTORE_ENV"
