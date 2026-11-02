@@ -35,6 +35,10 @@ website: https://calvadev.github.io/survival-llm/
 tags: [emergency, survival, offline, ai, first-aid]
 
 icon: ./artifacts/survival-llm-mobile/assets/images/icon.png
+images:
+  - ./packaging/zapstore/screenshots/chat-answer.jpg
+  - ./packaging/zapstore/screenshots/setup-downloads.jpg
+  - ./packaging/zapstore/screenshots/settings-device.jpg
 release_notes: ./artifacts/survival-llm-mobile/CHANGELOG.md
 
 metadata_sources: []
