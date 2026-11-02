@@ -1,0 +1,24 @@
+kind = "mobile"
+previewPath = "/"
+title = "Survival LLM"
+description = "Offline AI assistant and survival library: answers medical, emergency and how-to questions from an offline library on your phone, and shows the exact passage each answer came from."
+version = "1.0.0"
+id = "artifacts/survival-llm-mobile"
+router = "expo-domain"
+
+[[services]]
+name = "expo"
+ensurePreviewReachable = "/status"
+paths = [ "/" ]
+localPort = 22926
+
+[services.development]
+run = "pnpm --filter @workspace/survival-llm-mobile run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/survival-llm-mobile", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/survival-llm-mobile", "run", "serve" ]
+
+[services.env]
+PORT = "22926"
+BASE_PATH = "/"
