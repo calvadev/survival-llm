@@ -1,0 +1,40 @@
+# Zapstore listing for the Survival LLM Android app. zsp reads this file.
+# The pubkey is written by packaging/zapstore/publish.sh from the publisher's
+# Nostr secret at publish time; the committed file must keep the placeholder
+# exactly as-is so the whitelist check cannot silently pass on a stale key.
+repository: https://github.com/calvadev/survival-llm
+pubkey: npub16dhgpql60vmd4mnydjut87vla23a38j689jssaqlqqlzrtqtd0kqex0nkq
+release_source: https://github.com/calvadev/survival-llm
+release_filter: '^android-v[0-9]+\.[0-9]+\.[0-9]+$'
+match: 'Survival-LLM-android.*\.apk$'
+
+name: Survival LLM
+summary: Offline AI assistant and survival library that works with no internet
+description: |
+  Survival LLM is a free AI assistant and survival library that runs entirely on
+  your phone and works with no internet. Ask it how to keep food safe in a
+  blackout, treat a burn or purify water: it searches an offline library of
+  medical, emergency, how-to and encyclopedia articles, answers from what it
+  finds, and shows you the exact passage each answer came from.
+
+  - Offline and private: the AI model and the library live on your phone. Your
+    questions never leave it, and once set up it works with the internet off.
+  - Shows its sources: every answer lists the articles it read; tap one to read
+    it yourself, with the cited passage highlighted.
+  - Built for emergencies: about 500,000 articles in the Essentials download —
+    WikiMed, MedlinePlus, a UK medicines guide, WikEM, Ready.gov, CDC, U.S.
+    military and FEMA survival and first-aid manuals, the USDA canning guide,
+    wikiHow and more.
+
+  Set it up while you have internet (the AI model is about 2 GB and the
+  Essentials library about 1.3 GB); after that it needs none.
+
+  AI models make mistakes. Every answer shows its sources so you can check.
+license: MIT
+website: https://calvadev.github.io/survival-llm/
+tags: [emergency, survival, offline, ai, first-aid]
+
+icon: ./artifacts/survival-llm-mobile/assets/images/icon.png
+release_notes: ./artifacts/survival-llm-mobile/CHANGELOG.md
+
+metadata_sources: []
