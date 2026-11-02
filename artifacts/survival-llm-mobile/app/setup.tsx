@@ -102,7 +102,12 @@ export default function SetupScreen() {
   const model = MODELS.find((m) => m.key === modelKey);
   const custom = modelKey === 'custom';
   const totalGB = (needLibrary ? pack?.gb ?? 0 : 0) + (needModel && !custom ? model?.bytes ?? 0 : 0) / 1e9;
-  const activeJobs = app.jobs.filter((j) => ['downloading', 'verifying', 'unpacking', 'paused', 'error'].includes(j.status));
+  // Library bar always first, model bar always second (sort is stable, so a
+  // progress update never makes the bars trade places).
+  const jobOrder = (j: Job) => (j.key.startsWith('library:') ? 0 : j.key.startsWith('model:') ? 1 : 2);
+  const activeJobs = app.jobs
+    .filter((j) => ['downloading', 'verifying', 'unpacking', 'paused', 'error'].includes(j.status))
+    .sort((a, b) => jobOrder(a) - jobOrder(b));
   const running = activeJobs.some((j) => j.status !== 'error');
   const done = !needLibrary && !needModel;
 

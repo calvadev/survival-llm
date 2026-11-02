@@ -64,16 +64,18 @@ async function saveResume(key: string, data: string | null) {
   }
 }
 
-async function runDownload(key: string, url: string, fileUri: string): Promise<void> {
+async function runDownload(
+  key: string,
+  url: string,
+  fileUri: string,
+  onProgress: (written: number, expected: number) => void,
+): Promise<void> {
   const saved = await AsyncStorage.getItem(resumeKey(key));
-  const job = jobs.get(key)!;
   const resumable = LegacyFS.createDownloadResumable(
     url,
     fileUri,
     {},
-    (p) => {
-      emit({ ...jobs.get(key)!, status: 'downloading', completed: p.totalBytesWritten, total: p.totalBytesExpectedToWrite || job.total });
-    },
+    (p) => onProgress(p.totalBytesWritten, p.totalBytesExpectedToWrite),
     saved || undefined,
   );
   active.set(key, resumable);
@@ -117,7 +119,9 @@ export async function downloadModel(model: ModelInfo): Promise<string> {
   const partName = model.file + '.part';
   emit({ key, label: model.name, status: 'downloading', completed: 0, total: model.bytes });
   try {
-    await runDownload(key, model.url, partUri(partName));
+    await runDownload(key, model.url, partUri(partName), (written, expected) => {
+      emit({ key, label: model.name, status: 'downloading', completed: written, total: expected || model.bytes });
+    });
     const part = fileAt(PARTS_DIR, partName);
     emit({ key, label: model.name, status: 'verifying', completed: model.bytes, total: model.bytes });
     if (model.sha256) {
@@ -160,11 +164,17 @@ export async function downloadPack(pack: PackInfo): Promise<void> {
     for (let i = 0; i < pack.parts.length; i++) {
       const part = pack.parts[i];
       const partName = `${pack.id}.${String(i).padStart(3, '0')}.part`;
+      // Resume state stays per-part (each part is its own HTTP download), but
+      // progress goes to the one pack job — per-part jobs stacked up as
+      // identical bars that were never cleared.
       const partKey = `${key}:${i}`;
-      jobs.set(partKey, { key: partKey, label: pack.label, status: 'downloading', completed: done, total });
-      await runDownload(partKey, part.url, partUri(partName));
+      const label = pack.parts.length > 1 ? `${pack.label} — part ${i + 1} of ${pack.parts.length}` : pack.label;
+      emit({ key, label, status: 'downloading', completed: done, total });
+      await runDownload(partKey, part.url, partUri(partName), (written) => {
+        emit({ key, label, status: 'downloading', completed: done + written, total });
+      });
       const file = fileAt(PARTS_DIR, partName);
-      emit({ key, label: pack.label, status: 'verifying', completed: done, total });
+      emit({ key, label, status: 'verifying', completed: done + part.bytes, total });
       const sum = await sha256File(file);
       if (sum !== part.sha256) {
         deleteQuietly(file);

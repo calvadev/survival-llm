@@ -125,8 +125,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const unsub = subscribe((job) => setJobs((prev) => {
-      const rest = prev.filter((j) => j.key !== job.key);
-      return [...rest, job];
+      // Replace in place: appending the updated job at the end made progress
+      // bars swap positions every tick when two downloads ran at once.
+      const idx = prev.findIndex((j) => j.key === job.key);
+      if (idx === -1) return [...prev, job];
+      const next = prev.slice();
+      next[idx] = job;
+      return next;
     }));
     (async () => {
       await refresh();
