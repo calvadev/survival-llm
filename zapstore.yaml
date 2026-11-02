@@ -1,7 +1,7 @@
 # Zapstore listing for the Survival LLM Android app. zsp reads this file.
-# The pubkey is written by packaging/zapstore/publish.sh from the publisher's
-# Nostr secret at publish time; the committed file must keep the placeholder
-# exactly as-is so the whitelist check cannot silently pass on a stale key.
+# The relay's whitelist check fetches this file from the repo and requires the
+# committed pubkey to match the key that signs the publish events, so the real
+# publisher npub lives here (written by packaging/zapstore/publish.sh).
 repository: https://github.com/calvadev/survival-llm
 pubkey: npub16dhgpql60vmd4mnydjut87vla23a38j689jssaqlqqlzrtqtd0kqex0nkq
 release_source: https://github.com/calvadev/survival-llm
