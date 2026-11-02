@@ -26,5 +26,16 @@ serves the expected version, the upload certificate's SHA-256, and the exact
 APK bytes that were published.
 
 `npub.py` derives the publisher's npub from `NOSTR_NSEC` at publish time and
-writes it into `zapstore.yaml`; the committed `zapstore.yaml` keeps a
-placeholder so the key never enters git.
+writes it into `zapstore.yaml`. The relay's whitelist check fetches
+`zapstore.yaml` from GitHub and requires the committed pubkey to match the
+signing key, so the real npub is committed (it is a public key).
+
+## One-time certificate proof (first publish only)
+
+The first publish with a new upload certificate fails with `proof_required`
+until the interactive `zsp` wizard proves ownership once. Run `zsp` with no
+arguments, in this directory, with `SIGN_WITH=$NOSTR_NSEC` set. The wizard's
+final approval is not a terminal prompt: it serves a preview page on
+localhost:17008 and waits for the page's "Approve publication" button. If the
+publish ever fails `proof_required` again (new key, expired proof), re-run the
+wizard the same way.
