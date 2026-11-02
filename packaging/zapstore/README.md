@@ -9,6 +9,31 @@ publish; nothing is skippable.
 sh packaging/zapstore/publish.sh
 ```
 
+## Metadata-only refresh (text and screenshots)
+
+To change the listing's description, screenshots, icon or other metadata in
+`zapstore.yaml` **without** rebuilding or re-uploading the ~244 MB APK:
+
+```
+sh packaging/zapstore/publish.sh --metadata-only
+```
+
+Use this mode when the app itself has not changed and only the listing text or
+images have. It reuses the already-published APK in `dist/`, and because
+Zapstore refuses to republish an unchanged `version_code` without an explicit
+flag, it runs `zsp publish --overwrite-release` for you.
+
+The same gates apply, all mandatory: the local `zapstore.yaml` is committed
+and pushed first (the relay fetches it from GitHub), the APK's versionName
+must still match `app.json` (so a stale binary can never be slipped under new
+metadata), `zsp check` runs before publishing, and `check_zapstore.py`
+verifies the listing afterwards. The keystore is not needed — nothing is
+re-signed. Never work around this flow by running `zsp publish
+--overwrite-release` by hand; that bypasses every gate.
+
+Use the full mode (no flag) for anything that changes the app binary: a
+version bump, code changes, or dependency updates.
+
 Prerequisites (never committed, all covered by `.gitignore`):
 
 - `zsp` — the Zapstore publisher binary (github.com/zapstore/zsp releases)
