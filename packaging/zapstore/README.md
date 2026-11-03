@@ -34,6 +34,15 @@ re-signed. Never work around this flow by running `zsp publish
 Use the full mode (no flag) for anything that changes the app binary: a
 version bump, code changes, or dependency updates.
 
+To cut a release, bump `expo.version` in
+`artifacts/survival-llm-mobile/app.json` and write the CHANGELOG.md section —
+those are the only edits. `publish.sh` stamps `android/app/build.gradle`
+(Expo prebuild output, not committed) with the versionName and derives
+versionCode as `major*10000 + minor*100 + patch`, so it rises monotonically on
+its own as Zapstore requires; keep minor and patch below 100. After the build
+it refuses to publish an APK whose versionName or versionCode disagrees with
+app.json, and it refuses to publish a version with no CHANGELOG section.
+
 Prerequisites (never committed, all covered by `.gitignore`):
 
 - `zsp` — the Zapstore publisher binary (github.com/zapstore/zsp releases)

@@ -9,3 +9,4 @@
 - [Home filesystem is only 4 GB](home-fs-4gb.md) — big toolchains (Android SDK, Gradle caches) belong in the 256 GB workspace, symlinked from $HOME.
 - [Zapstore first-publish certificate proof](zapstore-proof-flow.md) — proof_required means run the interactive zsp wizard; its final approval is an HTTP POST to its preview server, not a terminal answer.
 - [Expo preview screenshots come back black at first](expo-preview-screenshots.md) — retake until the body renders; fresh chat route renders blank on web (empty inverted FlatList).
+- [Android version stamping](android-version-stamping.md) — android/ is gitignored prebuild output; app.json is the single version source, publish.sh stamps Gradle and derives versionCode from semver.
