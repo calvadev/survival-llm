@@ -197,7 +197,12 @@ class Library:
 
     def _read_bytes(self, file_id, offset, length):
         (path,) = self.db.execute("SELECT path FROM files WHERE id=?", (file_id,)).fetchone()
-        with open(os.path.join(TEXT_DIR, path), "rb") as f:
+        # A downloaded index is data, not permission to read arbitrary local files.
+        folder = os.path.realpath(TEXT_DIR)
+        target = os.path.realpath(os.path.join(folder, path))
+        if os.path.commonpath((folder, target)) != folder:
+            raise ValueError("Library path escapes its text folder")
+        with open(target, "rb") as f:
             f.seek(offset)
             return f.read(length)
 
