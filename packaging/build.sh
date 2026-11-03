@@ -23,7 +23,7 @@ PBS_URL="https://github.com/astral-sh/python-build-standalone/releases/download/
 OLLAMA_VERSION="v0.40.11"
 OLLAMA_URL="https://github.com/ollama/ollama/releases/download/$OLLAMA_VERSION"
 PYWEBVIEW="pywebview==6.2.1"
-PYPDF="pypdf==6.19.0"  # reads the PDFs people add to their own files (pure Python, same for Mac and Windows)
+PYPDF="pypdf==6.21.4"  # reads the PDFs people add to their own files (pure Python, same for Mac and Windows)
 TRUSTSTORE="truststore==0.10.4"  # checks web certificates with the system's own store (pure Python)
 
 mkdir -p "$CACHE" "$DIST"
