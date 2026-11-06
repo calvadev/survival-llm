@@ -283,8 +283,16 @@ export async function chatTurn(params: RunParams): Promise<{ text: string; sourc
     } catch (err: any) {
       if (useTools) {
         // The model/template can't do tool calls: fall back to attaching excerpts.
+        // Rebuild the transcript from scratch — assistant/tool messages from the
+        // failed rounds must not linger, or the retry fails on the same messages
+        // (and the excerpt swap below must hit the question, not a tool reply).
         useTools = false;
-        messages[0] = { role: 'system', content: systemPrompt(labels, false) };
+        messages.length = 0;
+        messages.push(
+          { role: 'system', content: systemPrompt(labels, false) },
+          ...history.slice(-10),
+          { role: 'user', content: question },
+        );
         const excerpts: string[] = [];
         for (const hit of await library!.search(question, undefined, 4)) {
           const doc = await library!.read(hit.id, 2500);
@@ -310,7 +318,23 @@ export async function chatTurn(params: RunParams): Promise<{ text: string; sourc
       answer = content || streamed;
       break;
     }
-    messages.push({ role: 'assistant', content: content || '', tool_calls: calls });
+    // Rebuild the tool calls with guaranteed-string fields before they go back
+    // into the transcript: llama.rn can return a call whose id or name is null,
+    // and llama.cpp's message parser aborts the whole next completion with
+    // "type must be string, but is null" when a present field is null.
+    const safeCalls = calls.map((c: any) => {
+      const fn = c?.function ?? {};
+      const clean: any = {
+        type: 'function',
+        function: {
+          name: typeof fn.name === 'string' ? fn.name : '',
+          arguments: typeof fn.arguments === 'string' ? fn.arguments : JSON.stringify(fn.arguments ?? {}),
+        },
+      };
+      if (typeof c?.id === 'string' && c.id) clean.id = c.id;
+      return clean;
+    });
+    messages.push({ role: 'assistant', content: content || '', tool_calls: safeCalls });
     for (const call of calls) {
       const name = call?.function?.name ?? '';
       const args = parseArgs(call);
