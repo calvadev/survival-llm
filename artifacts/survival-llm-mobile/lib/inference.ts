@@ -62,7 +62,7 @@ const RULES =
 const SEARCH_RULE =
   'Before answering any factual, medical, safety or how-to question, search the library, even if you ' +
   'think you know the answer, so the person can check where it came from. Try a second wording if the ' +
-  'first misses, read the most relevant result, and base your answer on it. If nothing relevant turns ' +
+  'first misses, read the one or two most relevant results, and base your answer on them. If nothing relevant turns ' +
   'up, still answer. When sources disagree, trust Ready.gov, CDC, MedlinePlus, the UK medicines guide, ' +
   'WikEM and WikiMed over wikiHow and Q&A sites.';
 
@@ -99,7 +99,9 @@ const TOOLS = [
     type: 'function',
     function: {
       name: 'read_article',
-      description: "Read about 5,000 characters of an article, starting at a search result's passage.",
+      description:
+        "Read about 5,000 characters of an article, starting at a search result's passage. " +
+        'Read the one or two most relevant results, not all of them.',
       parameters: {
         type: 'object',
         properties: { id: { type: 'integer', description: 'The id from search_library' } },
@@ -113,7 +115,8 @@ const TOOLS = [
       name: 'show_article',
       description:
         "Open an article on the person's screen so they can read it themselves, scrolled to the passage " +
-        'with this id. Use when they ask to see the source or the full instructions.',
+        'with this id. Use ONLY when the person explicitly asks to see a source or the full instructions — ' +
+        'never to read an article yourself (use read_article for that). At most one per answer.',
       parameters: {
         type: 'object',
         properties: { id: { type: 'integer', description: 'The id from search_library or read_article' } },
@@ -237,6 +240,48 @@ function parseArgs(call: any): Record<string, any> {
 
 const SOURCES_TAIL = /\n{0,2}[*#_ ]*Sources?[*_ ]*:[^\n]*(\n|$)/i;
 
+// The model can flood a round with calls (one answer tried 17); each read is
+// ~5,000 characters and the context window is 8,192 tokens, so cap a round.
+const MAX_CALLS_PER_ROUND = 4;
+
+// Models sometimes write tool calls as text instead of using the template's
+// mechanism — Llama 3.2 writes bare {"name": ..., "parameters": {...}} lines,
+// some models wrap the same JSON in <tool_call>...</tool_call>. Recover those
+// calls and keep the markup off the screen; core.py does the same dance.
+const TEXT_CALL =
+  /(?:<tool_call>\s*)?\{\s*["']name["']\s*:\s*["'](search_library|read_article|show_article)["']\s*,\s*["'](?:parameters|arguments)["']\s*:\s*\{[^{}]*\}\s*\}\s*(?:<\/tool_call>)?/g;
+// The same JSON shape naming something that is not a tool (models hallucinate
+// a "Sources" tool): never executed, but still stripped from the answer.
+const TEXT_CALL_ANY =
+  /(?:<tool_call>\s*)?\{\s*["']name["']\s*:\s*["'][A-Za-z_]+["']\s*,\s*["'](?:parameters|arguments)["']\s*:\s*\{[^{}]*\}\s*\}\s*(?:<\/tool_call>)?/g;
+// An answer that IS tool-call markup (parsed or not) is not an answer.
+const MARKUP_START = /^\s*(<tool_call|<\/?function|\{\s*["']name["']\s*:)/;
+const MARKUP_PREFIXES = ['<tool_call', '<function', '{"name"', '{ "name"', "{'name'"];
+
+/** Pull text-written tool calls out of a completion; returns the calls and the text without any call markup. */
+function extractTextCalls(text: string): { calls: any[]; cleaned: string } {
+  const calls: any[] = [];
+  for (const m of text.matchAll(TEXT_CALL)) {
+    let params: Record<string, any> = {};
+    const pm = m[0].match(/["'](?:parameters|arguments)["']\s*:\s*(\{[^{}]*\})/);
+    if (pm) {
+      try {
+        params = JSON.parse(pm[1].replace(/'/g, '"'));
+      } catch {
+        params = {};
+      }
+    }
+    calls.push({ type: 'function', function: { name: m[1], arguments: JSON.stringify(params) } });
+  }
+  const cleaned = text
+    .replace(TEXT_CALL_ANY, ' ')
+    .replace(/<\/?tool_call>/g, ' ')
+    .replace(/^[ \t]*;[ \t]*$/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  return { calls, cleaned };
+}
+
 /**
  * Run one turn: stream the answer, run the model's library tool calls, and end
  * with the authoritative Sources line (what it actually read), exactly as the
@@ -255,6 +300,36 @@ export async function chatTurn(params: RunParams): Promise<{ text: string; sourc
 
   let useTools = !!library;
   let answer = '';
+  let shownOnScreen = 0;
+
+  // The model/template can't do tool calls (or keeps writing them as text):
+  // fall back to attaching excerpts to the question. Rebuild the transcript
+  // from scratch — assistant/tool messages from the failed rounds must not
+  // linger, or the retry fails on the same messages.
+  const fallbackToExcerpts = async () => {
+    useTools = false;
+    messages.length = 0;
+    messages.push(
+      { role: 'system', content: systemPrompt(labels, false) },
+      ...history.slice(-10),
+      { role: 'user', content: question },
+    );
+    const excerpts: string[] = [];
+    for (const hit of await library!.search(question, undefined, 4)) {
+      const doc = await library!.read(hit.id, 2500);
+      if (doc) {
+        sources.set(hit.id, { id: hit.id, title: hit.title, source: hit.source, official: hit.official });
+        excerpts.push(`[${doc.title} (${doc.source})]\n${doc.text}`);
+        onActivity(`Read “${doc.title}” (${doc.source})`);
+      }
+    }
+    if (excerpts.length) {
+      messages[messages.length - 1] = {
+        role: 'user',
+        content: question + '\n\nLibrary excerpts:\n\n' + excerpts.join('\n\n'),
+      };
+    }
+  };
 
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
     const last = round === MAX_TOOL_ROUNDS;
@@ -273,49 +348,51 @@ export async function chatTurn(params: RunParams): Promise<{ text: string; sourc
     }
     let result: any;
     let streamed = '';
+    let shownUpTo = 0;
     try {
       result = await ctx.completion(body, (data: any) => {
-        if (data?.token) {
-          streamed += data.token;
+        if (!data?.token) return;
+        streamed += data.token;
+        if (!useTools) {
           onToken(data.token);
+          return;
+        }
+        // Keep tool-call markup off the screen (core.py's held-token dance):
+        // hold back text that may still turn out to be the start of a call,
+        // and never show text that is one.
+        const trimmed = streamed.replace(/^\s+/, '');
+        if (MARKUP_PREFIXES.some((p) => trimmed.startsWith(p) || p.startsWith(trimmed))) return;
+        if (streamed.length > shownUpTo) {
+          onToken(streamed.slice(shownUpTo));
+          shownUpTo = streamed.length;
         }
       });
     } catch (err: any) {
       if (useTools) {
-        // The model/template can't do tool calls: fall back to attaching excerpts.
-        // Rebuild the transcript from scratch — assistant/tool messages from the
-        // failed rounds must not linger, or the retry fails on the same messages
-        // (and the excerpt swap below must hit the question, not a tool reply).
-        useTools = false;
-        messages.length = 0;
-        messages.push(
-          { role: 'system', content: systemPrompt(labels, false) },
-          ...history.slice(-10),
-          { role: 'user', content: question },
-        );
-        const excerpts: string[] = [];
-        for (const hit of await library!.search(question, undefined, 4)) {
-          const doc = await library!.read(hit.id, 2500);
-          if (doc) {
-            sources.set(hit.id, { id: hit.id, title: hit.title, source: hit.source, official: hit.official });
-            excerpts.push(`[${doc.title} (${doc.source})]\n${doc.text}`);
-            onActivity(`Read “${doc.title}” (${doc.source})`);
-          }
-        }
-        if (excerpts.length) {
-          messages[messages.length - 1] = {
-            role: 'user',
-            content: question + '\n\nLibrary excerpts:\n\n' + excerpts.join('\n\n'),
-          };
-        }
+        await fallbackToExcerpts();
+        round = -1; // the fallback replaces this round rather than consuming one
         continue;
       }
       throw err;
     }
-    const calls: any[] = result?.tool_calls ?? [];
-    const content: string = result?.content ?? result?.text ?? streamed;
+    let calls: any[] = (result?.tool_calls ?? []).slice(0, MAX_CALLS_PER_ROUND);
+    let content: string = result?.content ?? result?.text ?? streamed;
+    if (useTools && content) {
+      const found = extractTextCalls(content);
+      // The engine parsed no calls, but the model wrote them as text
+      // (Llama 3.2's bare {"name": ..., "parameters": ...} JSON): run them.
+      if (!last && !calls.length && found.calls.length) calls = found.calls.slice(0, MAX_CALLS_PER_ROUND);
+      content = found.cleaned;
+    }
+    if (useTools && library && !calls.length && (!content.trim() || MARKUP_START.test(content))) {
+      // Its whole answer was tool-call markup the engine never parsed (or the
+      // answer was empty): treat it as a tool failure and answer with excerpts.
+      await fallbackToExcerpts();
+      round = -1; // the fallback replaces this round rather than consuming one
+      continue;
+    }
     if (!useTools || !calls.length) {
-      answer = content || streamed;
+      answer = content;
       break;
     }
     // Rebuild the tool calls with guaranteed-string fields before they go back
@@ -358,11 +435,15 @@ export async function chatTurn(params: RunParams): Promise<{ text: string; sourc
               out = 'No passage with that id.';
             } else {
               sources.set(id, { id, title: doc.title, source: doc.source, official: doc.official });
-              if (name === 'show_article') {
+              if (name === 'show_article' && shownOnScreen === 0) {
+                shownOnScreen++;
                 onActivity(`Opened “${doc.title}” on screen`);
                 router.push({ pathname: '/article', params: { id: String(id) } });
                 out = `Opened "${doc.title}" (${doc.source}) on screen.`;
               } else {
+                // show_article past the one-per-answer cap lands here too: the
+                // screen can't show more, so serve it as a normal read and the
+                // model still gets the text it was after.
                 onActivity(`Read “${doc.title}” (${doc.source})`);
                 out = `${doc.title} (${doc.source})\n${doc.url ?? ''}\n\n${doc.text}`;
               }

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.3
+
+Fix the AI dumping raw tool-call text ({"name": "read_article", ...}) as its
+answer instead of looking articles up: text-written calls are now recovered
+and run, markup never reaches the screen, and an answer that is only markup
+falls back to answering with library excerpts. Also caps on-screen article
+opens at one per answer — asking a question no longer hijacks the screen for
+every article the AI reads.
+
 ## 0.1.2
 
 Fix a crash when the AI answers with library sources: after it used its search
