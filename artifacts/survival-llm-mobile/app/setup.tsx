@@ -7,7 +7,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, 
 import { useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { FALLBACK_PACKS, fetchPacks, MODELS, PackInfo } from '@/lib/catalog';
-import { gb } from '@/lib/fsutil';
+import { duration, gb, rate } from '@/lib/fsutil';
 import { Job } from '@/lib/install';
 import { useApp } from '@/lib/state';
 
@@ -52,18 +52,28 @@ function Option({
 function JobView({ job }: { job: Job }) {
   const colors = useColors();
   const pct = job.total ? Math.min(100, Math.round((job.completed / job.total) * 100)) : 0;
-  const line =
-    job.status === 'verifying'
-      ? 'Checking the download…'
-      : job.status === 'unpacking'
-        ? 'Unpacking… (a few minutes)'
-        : job.status === 'paused'
-          ? 'Paused'
-          : job.status === 'error'
-            ? ''
-            : job.total
-              ? `${gb(job.completed)} of ${gb(job.total)}`
-              : 'Starting…';
+  // Name the stage and, while downloading, how much is left and how fast — a
+  // bare bar with no numbers is what made a slow transfer look like a freeze.
+  let line: string;
+  if (job.status === 'verifying') {
+    line = job.total ? `Checking the download · ${pct}%` : 'Checking the download…';
+  } else if (job.status === 'unpacking') {
+    line = 'Unpacking… (a few minutes)';
+  } else if (job.status === 'paused') {
+    line = 'Paused';
+  } else if (job.status === 'error') {
+    line = '';
+  } else {
+    const parts = ['Downloading'];
+    if (job.total) parts.push(`${pct}%`, `${gb(job.completed)} of ${gb(job.total)}`);
+    else if (job.completed) parts.push(gb(job.completed));
+    const speed = rate(job.speed ?? 0);
+    if (speed) parts.push(speed);
+    const left = duration(job.eta ?? 0);
+    if (left) parts.push(`${left} left`);
+    if (job.attempt && job.attempt > 1) parts.push(`try ${job.attempt}`);
+    line = parts.join(' · ');
+  }
   return (
     <View style={{ marginTop: 12 }}>
       <Text style={{ color: colors.text, fontWeight: '600', fontSize: 14 }}>{job.label}</Text>
@@ -75,6 +85,9 @@ function JobView({ job }: { job: Job }) {
           <View style={[styles.progressTrack, { backgroundColor: colors.border }]}>
             <View style={[styles.progressFill, { backgroundColor: colors.primary, width: `${pct}%` }]} />
           </View>
+          {!!job.note && (
+            <Text style={{ color: colors.statusWarn, fontSize: 12.5, marginTop: 4, lineHeight: 18 }}>{job.note}</Text>
+          )}
         </>
       )}
     </View>

@@ -2,12 +2,17 @@
  * Download manager: models (GGUF) and library packs, resumable, with the same
  * discipline as the desktop installer — every download's sha256 is verified
  * before it is used, and a failed check is a loud error, never a warning.
+ *
+ * The transfers themselves live in ./download: parallel ranged requests where
+ * the server allows them, expo-file-system's native downloader otherwise, both
+ * watched for stalls and retried. This file is the bookkeeping around them —
+ * what is downloading, how fast, how much is left, and what the UI should say.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as LegacyFS from 'expo-file-system/legacy';
 import { File } from 'expo-file-system';
 import { Unzip, UnzipInflate } from 'fflate';
 import { ModelInfo, PackInfo } from './catalog';
+import { downloadFile, pauseTransfer, TransferProgress } from './download';
 import {
   ensureDirs,
   fileAt,
@@ -30,13 +35,20 @@ export interface Job {
   completed: number;
   total: number;
   error?: string;
+  /** Smoothed throughput in bytes per second, while downloading. */
+  speed?: number;
+  /** Seconds remaining, when the speed and the total are both known. */
+  eta?: number;
+  /** A short line about a stall, retry or fallback; absent when all is well. */
+  note?: string;
+  /** 1-based number of the attempt now running, when it is a retry. */
+  attempt?: number;
 }
 
 type Listener = (job: Job) => void;
 
 const jobs = new Map<string, Job>();
 const listeners = new Set<Listener>();
-const active = new Map<string, LegacyFS.DownloadResumable>();
 
 function emit(job: Job) {
   jobs.set(job.key, job);
@@ -52,53 +64,41 @@ export function currentJobs(): Job[] {
   return [...jobs.values()];
 }
 
-const resumeKey = (key: string) => `sl:resume:${key}`;
 const partUri = (name: string) => `${PARTS_DIR.uri}/${name}`;
 
-async function saveResume(key: string, data: string | null) {
-  try {
-    if (data) await AsyncStorage.setItem(resumeKey(key), data);
-    else await AsyncStorage.removeItem(resumeKey(key));
-  } catch {
-    // best effort
-  }
+/** Seconds remaining at the current rate, or 0 when it cannot be estimated. */
+function etaSeconds(written: number, total: number, speed: number): number {
+  if (!speed || !total || total <= written) return 0;
+  return (total - written) / speed;
 }
 
-async function runDownload(
-  key: string,
-  url: string,
-  fileUri: string,
-  onProgress: (written: number, expected: number) => void,
-): Promise<void> {
-  const saved = await AsyncStorage.getItem(resumeKey(key));
-  const resumable = LegacyFS.createDownloadResumable(
-    url,
-    fileUri,
-    {},
-    (p) => onProgress(p.totalBytesWritten, p.totalBytesExpectedToWrite),
-    saved || undefined,
-  );
-  active.set(key, resumable);
-  const result = saved ? await resumable.resumeAsync() : await resumable.downloadAsync();
-  active.delete(key);
-  if (!result || result.status < 200 || result.status >= 300) {
-    throw new Error(`The download failed (the site answered HTTP ${result?.status ?? 'nothing'}). Try again.`);
+/**
+ * A download that makes no progress used to look like a frozen bar with no
+ * explanation. Say so, so "it is stuck" reads as "it is retrying".
+ *
+ * The rate is worked out here rather than in the transfer so the figure
+ * survives a retry (which restarts the per-attempt counter) and covers the
+ * gap between bytes.
+ */
+const QUIET_MS = 12_000;
+const seen = new Map<string, { completed: number; at: number }>();
+setInterval(() => {
+  const now = Date.now();
+  for (const job of jobs.values()) {
+    if (job.status !== 'downloading') {
+      seen.delete(job.key);
+      continue;
+    }
+    const previous = seen.get(job.key);
+    if (!previous || previous.completed !== job.completed) {
+      seen.set(job.key, { completed: job.completed, at: now });
+      continue;
+    }
+    if (now - previous.at > QUIET_MS && !job.note) {
+      emit({ ...job, note: 'No new data for a while — the connection may be stalling.' });
+    }
   }
-  await saveResume(key, null);
-}
-
-export async function pauseJob(key: string) {
-  const r = active.get(key);
-  if (!r) return;
-  try {
-    const state = await r.pauseAsync();
-    await saveResume(key, (state as any)?.resumeData ?? null);
-  } catch {
-    // already finished
-  }
-  const job = jobs.get(key);
-  if (job && job.status === 'downloading') emit({ ...job, status: 'paused' });
-}
+}, 3000);
 
 /** The GGUF magic bytes — the integrity floor for user-supplied model URLs. */
 async function looksLikeGguf(file: File): Promise<boolean> {
@@ -117,15 +117,30 @@ export async function downloadModel(model: ModelInfo): Promise<string> {
   ensureDirs();
   const key = `model:${model.key}`;
   const partName = model.file + '.part';
-  emit({ key, label: model.name, status: 'downloading', completed: 0, total: model.bytes });
-  try {
-    await runDownload(key, model.url, partUri(partName), (written, expected) => {
-      emit({ key, label: model.name, status: 'downloading', completed: written, total: expected || model.bytes });
+  const part = fileAt(PARTS_DIR, partName);
+  const label = model.name;
+
+  const report = (p: TransferProgress) =>
+    emit({
+      key,
+      label,
+      status: 'downloading',
+      completed: p.written,
+      total: p.total || model.bytes,
+      speed: p.speed,
+      eta: etaSeconds(p.written, p.total || model.bytes, p.speed),
+      note: p.note,
+      attempt: p.attempt,
     });
-    const part = fileAt(PARTS_DIR, partName);
-    emit({ key, label: model.name, status: 'verifying', completed: model.bytes, total: model.bytes });
+
+  emit({ key, label, status: 'downloading', completed: 0, total: model.bytes, speed: 0 });
+  try {
+    await downloadFile({ key, url: model.url, dest: part, expectedBytes: model.bytes, onProgress: report });
+    emit({ key, label, status: 'verifying', completed: 0, total: model.bytes, speed: 0 });
     if (model.sha256) {
-      const sum = await sha256File(part);
+      const sum = await sha256File(part, (hashed) =>
+        emit({ key, label, status: 'verifying', completed: hashed, total: model.bytes, speed: 0 }),
+      );
       if (sum !== model.sha256) {
         deleteQuietly(part);
         throw new Error(
@@ -144,10 +159,10 @@ export async function downloadModel(model: ModelInfo): Promise<string> {
     const dest = fileAt(MODELS_DIR, model.file);
     deleteQuietly(dest);
     part.move(dest);
-    emit({ key, label: model.name, status: 'done', completed: model.bytes, total: model.bytes });
+    emit({ key, label, status: 'done', completed: model.bytes, total: model.bytes });
     return model.file;
   } catch (err: any) {
-    emit({ ...jobs.get(key)!, status: 'error', error: err?.message ?? String(err) });
+    emit({ ...jobs.get(key)!, status: 'error', error: err?.message ?? String(err), speed: 0, eta: 0 });
     throw err;
   }
 }
@@ -157,25 +172,44 @@ export async function downloadPack(pack: PackInfo): Promise<void> {
   ensureDirs();
   const key = `library:${pack.id}`;
   const total = pack.parts.reduce((a, p) => a + p.bytes, 0);
-  emit({ key, label: pack.label, status: 'downloading', completed: 0, total });
+  emit({ key, label: pack.label, status: 'downloading', completed: 0, total, speed: 0 });
   try {
     let done = 0;
     const partFiles: File[] = [];
     for (let i = 0; i < pack.parts.length; i++) {
       const part = pack.parts[i];
       const partName = `${pack.id}.${String(i).padStart(3, '0')}.part`;
+      const file = fileAt(PARTS_DIR, partName);
       // Resume state stays per-part (each part is its own HTTP download), but
       // progress goes to the one pack job — per-part jobs stacked up as
       // identical bars that were never cleared.
       const partKey = `${key}:${i}`;
       const label = pack.parts.length > 1 ? `${pack.label} — part ${i + 1} of ${pack.parts.length}` : pack.label;
-      emit({ key, label, status: 'downloading', completed: done, total });
-      await runDownload(partKey, part.url, partUri(partName), (written) => {
-        emit({ key, label, status: 'downloading', completed: done + written, total });
+      emit({ key, label, status: 'downloading', completed: done, total, speed: 0 });
+      await downloadFile({
+        key: partKey,
+        url: part.url,
+        dest: file,
+        expectedBytes: part.bytes,
+        onProgress: (p) => {
+          const completed = done + Math.min(p.written, part.bytes);
+          emit({
+            key,
+            label,
+            status: 'downloading',
+            completed,
+            total,
+            speed: p.speed,
+            eta: etaSeconds(completed, total, p.speed),
+            note: p.note,
+            attempt: p.attempt,
+          });
+        },
       });
-      const file = fileAt(PARTS_DIR, partName);
-      emit({ key, label, status: 'verifying', completed: done + part.bytes, total });
-      const sum = await sha256File(file);
+      emit({ key, label, status: 'verifying', completed: done, total, speed: 0 });
+      const sum = await sha256File(file, (hashed) =>
+        emit({ key, label, status: 'verifying', completed: done + Math.min(hashed, part.bytes), total, speed: 0 }),
+      );
       if (sum !== part.sha256) {
         deleteQuietly(file);
         throw new Error(
@@ -184,7 +218,7 @@ export async function downloadPack(pack: PackInfo): Promise<void> {
       }
       partFiles.push(file);
       done += part.bytes;
-      emit({ key, label: pack.label, status: 'downloading', completed: done, total });
+      emit({ key, label: pack.label, status: 'downloading', completed: done, total, speed: 0 });
     }
     emit({ key, label: pack.label, status: 'unpacking', completed: total, total });
     await unpack(partFiles, (written) => {
@@ -193,9 +227,16 @@ export async function downloadPack(pack: PackInfo): Promise<void> {
     for (const f of partFiles) deleteQuietly(f);
     emit({ key, label: pack.label, status: 'done', completed: total, total });
   } catch (err: any) {
-    emit({ ...jobs.get(key)!, status: 'error', error: err?.message ?? String(err) });
+    emit({ ...jobs.get(key)!, status: 'error', error: err?.message ?? String(err), speed: 0, eta: 0 });
     throw err;
   }
+}
+
+/** Pause the transfer behind a job, keeping what has been written so far. */
+export async function pauseJob(key: string) {
+  pauseTransfer(key);
+  const job = jobs.get(key);
+  if (job && job.status === 'downloading') emit({ ...job, status: 'paused', note: 'Paused — your progress is saved.', speed: 0 });
 }
 
 /** Map a zip entry name to its destination inside the library folder. */

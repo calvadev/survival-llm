@@ -34,8 +34,9 @@ export function fileSize(file: File): number {
   }
 }
 
-/** Incremental sha256 over a (possibly multi-GB) file, read in 4 MB chunks. */
-export async function sha256File(file: File): Promise<string> {
+/** Incremental sha256 over a (possibly multi-GB) file, read in 4 MB chunks.
+ *  Reports bytes hashed so the UI can show the check making progress. */
+export async function sha256File(file: File, onProgress?: (hashed: number) => void): Promise<string> {
   const handle = file.open();
   try {
     const hasher = sha256.create();
@@ -48,6 +49,7 @@ export async function sha256File(file: File): Promise<string> {
       if (!bytes || bytes.length === 0) break;
       hasher.update(bytes);
       offset += bytes.length;
+      if (onProgress) onProgress(offset);
       // Let the JS thread breathe so progress UI keeps painting.
       await new Promise((r) => setTimeout(r, 0));
     }
@@ -59,6 +61,29 @@ export async function sha256File(file: File): Promise<string> {
 
 export function gb(bytes: number): string {
   return `${(bytes / 1e9).toFixed(1)} GB`;
+}
+
+/** A megabyte figure for progress lines: "340 MB". */
+export function mb(bytes: number): string {
+  return `${(bytes / 1e6).toFixed(0)} MB`;
+}
+
+/** A transfer rate: "12 MB/s". Empty when there is nothing to report yet. */
+export function rate(bytesPerSecond: number): string {
+  if (!bytesPerSecond || !Number.isFinite(bytesPerSecond)) return '';
+  const mbs = bytesPerSecond / 1e6;
+  return mbs >= 10 ? `${mbs.toFixed(0)} MB/s` : `${mbs.toFixed(1)} MB/s`;
+}
+
+/** A remaining-time figure: "about 4 min". Empty when it cannot be estimated. */
+export function duration(seconds: number): string {
+  if (!seconds || !Number.isFinite(seconds) || seconds <= 0) return '';
+  if (seconds < 60) return `${Math.max(1, Math.round(seconds))} sec`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `about ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest ? `about ${hours} hr ${rest} min` : `about ${hours} hr`;
 }
 
 export function deleteQuietly(file: File) {

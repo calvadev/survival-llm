@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.4
+
+Much faster, more reliable setup downloads, with progress that explains
+itself. Large files now download over several parallel connections instead of
+one, and an interrupted transfer resumes from the parts already on disk rather
+than starting over. A connection that goes silent is detected and retried
+instead of leaving the bar frozen forever, and the screen now shows the
+speed, how much is left and roughly how long it will take, plus a plain
+notice when the connection stalls or a retry is under way. The checksum check
+after a download reports its own progress too, instead of sitting at 100%
+in silence.
+
 ## 0.1.3
 
 Fix the AI dumping raw tool-call text ({"name": "read_article", ...}) as its
